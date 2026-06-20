@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Elis Miranda</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0D0A0B;
+    --surface:   #161114;
+    --card:      #1C1720;
+    --border:    #2A2330;
+    --gold:      #C9A96E;
+    --gold-dim:  #8C7249;
+    --gold-glow: rgba(201,169,110,.12);
+    --text:      #F0EBE3;
+    --muted:     #7A6E78;
+    --confirm:   #4CAF7D;
+    --cancel:    #C96E6E;
+    --pending:   #C9A96E;
+    --font-display: 'Cormorant Garamond', serif;
+    --font-body:    'DM Sans', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+  /* ── LOADER ── */
+  #loader {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; transition: opacity .6s ease;
+  }
+  #loader.fade { opacity: 0; pointer-events: none; }
+  .loader-line {
+    width: 0; height: 1px; background: var(--gold);
+    animation: loadLine 1.4s cubic-bezier(.4,0,.2,1) forwards;
+  }
+  @keyframes loadLine { to { width: 180px; } }
+  .loader-name {
+    margin-top: 20px; font-family: var(--font-display); font-size: 1.4rem;
+    font-weight: 300; letter-spacing: .2em; color: var(--gold);
+    opacity: 0; animation: fadeUp .6s ease .9s forwards;
+  }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+  /* ── LOGIN ── */
+  #login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; opacity: 0; pointer-events: none;
+    transition: opacity .5s ease;
+  }
+  #login-screen.visible { opacity: 1; pointer-events: all; }
+  .login-box {
+    width: 100%; max-width: 340px; padding: 48px 36px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 2px; text-align: center;
+    animation: fadeUp .5s ease;
+  }
+  .login-logo {
+    font-family: var(--font-display); font-size: 1.6rem; font-weight: 300;
+    letter-spacing: .15em; color: var(--gold); margin-bottom: 6px;
+  }
+  .login-sub {
+    font-size: .72rem; letter-spacing: .18em; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 36px;
+  }
+  .pin-display {
+    display: flex; gap: 12px; justify-content: center; margin-bottom: 28px;
+  }
+  .pin-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 1px solid var(--gold-dim); background: transparent;
+    transition: background .2s;
+  }
+  .pin-dot.filled { background: var(--gold); border-color: var(--gold); }
+  .pin-pad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    margin-bottom: 20px;
+  }
+  .pin-btn {
+    aspect-ratio: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 2px; color: var(--text); font-family: var(--font-body);
+    font-size: 1.1rem; cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pin-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .pin-btn:active { transform: scale(.95); }
+  .pin-btn.del { font-size: .85rem; color: var(--muted); }
+  .biometric-btn {
+    width: 100%; padding: 12px; background: transparent;
+    border: 1px solid var(--border); border-radius: 2px;
+    color: var(--muted); font-family: var(--font-body);
+    font-size: .8rem; letter-spacing: .1em; cursor: pointer;
+    transition: all .2s; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+  }
+  .biometric-btn:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .login-error {
+    font-size: .75rem; color: var(--cancel); margin-top: 12px;
+    min-height: 18px; letter-spacing: .05em;
+  }
+
+  /* ── MAIN APP ── */
+  #app { display: none; min-height: 100vh; flex-direction: column; }
+  #app.visible { display: flex; }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    background: var(--surface); position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-brand { font-family: var(--font-display); font-size: 1.2rem; font-weight: 300; letter-spacing: .12em; color: var(--gold); }
+  .topbar-date { font-size: .72rem; color: var(--muted); letter-spacing: .08em; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn-icon {
+    width: 36px; height: 36px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 2px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .2s; color: var(--muted); font-size: 1rem;
+  }
+  .btn-icon:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+  /* ── BODY ── */
+  .main { flex: 1; padding: 24px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+  /* ── STAT CARDS ── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 2px;
+    padding: 18px 16px; position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  }
+  .stat-card.total::before { background: var(--gold); }
+  .stat-card.confirm::before { background: var(--confirm); }
+  .stat-card.pending::before { background: var(--pending); }
+  .stat-card.done::before { background: var(--muted); }
+  .stat-label { font-size: .68rem; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-display); font-size: 2.2rem; font-weight: 300; color: var(--text); line-height: 1; }
+  .stat-card.total .stat-value { color: var(--gold); }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-family: var(--font-display); font-size: 1.15rem; font-weight: 300;
+    letter-spacing: .08em; color: var(--text);
+  }
+  .section-title span { color: var(--gold); font-style: italic; }
+
+  /* ── FILTER TABS ── */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-btn {
+    padding: 5px 14px; font-size: .72rem; letter-spacing: .1em;
+    text-transform: uppercase; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); border-radius: 2px;
+    cursor: pointer; transition: all .2s;
+  }
+  .filter-btn.active { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+  .filter-btn:hover:not(.active) { border-color: var(--border); color: var(--text); }
+
+  /* ── TABLE ── */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; padding: 12px 16px; font-size: .65rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--muted); font-weight: 400;
+    border-bottom: 1px solid var(--border); background: var(--card);
+  }
+  td { padding: 13px 16px; font-size: .82rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--card); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 2px; font-size: .68rem;
+    letter-spacing: .1em; text-transform: uppercase; font-weight: 500;
+  }
+  .status-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+  .badge-pendente { background: rgba(201,169,110,.1); color: var(--gold); }
+  .badge-pendente::before { background: var(--gold); }
+  .badge-confirmado { background: rgba(76,175,125,.1); color: var(--confirm); }
+  .badge-confirmado::before { background: var(--confirm); }
+  .badge-cancelado { background: rgba(201,110,110,.1); color: var(--cancel); }
+  .badge-cancelado::before { background: var(--cancel); }
+  .badge-realizado { background: rgba(122,110,120,.15); color: var(--muted); }
+  .badge-realizado::before { background: var(--muted); }
+
+  .td-actions { display: flex; gap: 6px; }
+  .act-btn {
+    padding: 4px 10px; font-size: .68rem; letter-spacing: .08em;
+    border-radius: 2px; cursor: pointer; transition: all .15s; border: 1px solid;
+  }
+  .act-confirm { border-color: var(--confirm); color: var(--confirm); background: transparent; }
+  .act-confirm:hover { background: rgba(76,175,125,.1); }
+  .act-cancel { border-color: var(--cancel); color: var(--cancel); background: transparent; }
+  .act-cancel:hover { background: rgba(201,110,110,.1); }
+  .act-done { border-color: var(--muted); color: var(--muted); background: transparent; }
+  .act-done:hover { background: rgba(122,110,120,.1); }
+
+  .empty-state {
+    padding: 48px; text-align: center; color: var(--muted);
+    font-size: .82rem; letter-spacing: .05em;
+  }
+
+  /* ── ADD MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(13,10,11,.85);
+    backdrop-filter: blur(4px); z-index: 200;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 2px; width: 100%; max-width: 400px; padding: 32px;
+    animation: fadeUp .3s ease;
+  }
+  .modal-title {
+    font-family: var(--font-display); font-size: 1.3rem; font-weight: 300;
+    letter-spacing: .1em; color: var(--gold); margin-bottom: 24px;
+  }
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .form-input {
+    width: 100%; padding: 10px 12px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 2px; color: var(--text);
+    font-family: var(--font-body); font-size: .85rem; transition: border .2s;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--gold-dim); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .btn-primary {
+    flex: 1; padding: 11px; background: var(--gold); color: var(--bg);
+    border: none; border-radius: 2px; font-family: var(--font-body);
+    font-size: .8rem; letter-spacing: .1em; text-transform: uppercase;
+    cursor: pointer; transition: opacity .2s;
+  }
+  .btn-primary:hover { opacity: .88; }
+  .btn-secondary {
+    flex: 1; padding: 11px; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 2px; font-family: var(--font-body);
+    font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--card); border: 1px solid var(--border); border-radius: 2px;
+    padding: 11px 20px; font-size: .78rem; letter-spacing: .06em;
+    opacity: 0; transition: all .3s; z-index: 300; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { border-color: var(--confirm); color: var(--confirm); }
+  #toast.error { border-color: var(--cancel); color: var(--cancel); }
+
+  /* ── ADD BTN ── */
+  .fab {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 50px; height: 50px; border-radius: 2px;
+    background: var(--gold); border: none; color: var(--bg);
+    font-size: 1.4rem; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(201,169,110,.25); transition: all .2s;
+    z-index: 50;
+  }
+  .fab:hover { opacity: .88; transform: translateY(-2px); }
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="loader-line"></div>
+  <div class="loader-name">Elis Miranda</div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Elis Miranda</div>
+    <div class="login-sub">Painel de Agendamentos</div>
+    <div class="pin-display">
+      <div class="pin-dot" id="d0"></div>
+      <div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div>
+      <div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-btn" onclick="pinPress('1')">1</button>
+      <button class="pin-btn" onclick="pinPress('2')">2</button>
+      <button class="pin-btn" onclick="pinPress('3')">3</button>
+      <button class="pin-btn" onclick="pinPress('4')">4</button>
+      <button class="pin-btn" onclick="pinPress('5')">5</button>
+      <button class="pin-btn" onclick="pinPress('6')">6</button>
+      <button class="pin-btn" onclick="pinPress('7')">7</button>
+      <button class="pin-btn" onclick="pinPress('8')">8</button>
+      <button class="pin-btn" onclick="pinPress('9')">9</button>
+      <button class="pin-btn del" onclick="pinClear()">⌫</button>
+      <button class="pin-btn" onclick="pinPress('0')">0</button>
+      <button class="pin-btn del" onclick="pinClear('all')">✕</button>
+    </div>
+    <button class="biometric-btn" onclick="biometricLogin()" id="bio-btn">
+      <span>👁</span> <span id="bio-label">Face ID / Digital</span>
+    </button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div>
+      <div class="topbar-brand">Elis Miranda</div>
+      <div class="topbar-date" id="topbar-date"></div>
+    </div>
+    <div class="topbar-actions">
+      <div class="btn-icon" onclick="refreshData()" title="Atualizar">↻</div>
+      <div class="btn-icon" onclick="logout()" title="Sair">⎋</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- STATS -->
+    <div class="stats">
+      <div class="stat-card total">
+        <div class="stat-label">Total</div>
+        <div class="stat-value" id="stat-total">0</div>
+      </div>
+      <div class="stat-card confirm">
+        <div class="stat-label">Confirmados</div>
+        <div class="stat-value" id="stat-confirmados">0</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-label">Pendentes</div>
+        <div class="stat-value" id="stat-pendentes">0</div>
+      </div>
+      <div class="stat-card done">
+        <div class="stat-label">Realizados</div>
+        <div class="stat-value" id="stat-realizados">0</div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="section-header">
+      <div class="section-title">Agendamentos <span>do mês</span></div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="setFilter('todos', this)">Todos</button>
+        <button class="filter-btn" onclick="setFilter('Pendente', this)">Pendentes</button>
+        <button class="filter-btn" onclick="setFilter('Confirmado', this)">Confirmados</button>
+        <button class="filter-btn" onclick="setFilter('Realizado', this)">Realizados</button>
+        <button class="filter-btn" onclick="setFilter('Cancelado', this)">Cancelados</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Hora</th>
+            <th>Cliente</th>
+            <th>Telefone</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <tr><td colspan="6" class="empty-state">Carregando agendamentos...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()" title="Novo agendamento">+</button>
+
+<!-- MODAL NOVO AGENDAMENTO -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Novo agendamento</div>
+    <div class="form-group">
+      <label class="form-label">Nome</label>
+      <input class="form-input" id="f-name" placeholder="Nome da cliente" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">WhatsApp</label>
+      <input class="form-input" id="f-phone" placeholder="(XX) 9XXXX-XXXX" type="tel" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Data</label>
+        <input class="form-input" id="f-date" type="date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hora</label>
+        <input class="form-input" id="f-time" type="time" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Anotações</label>
+      <input class="form-input" id="f-notes" placeholder="Observações (opcional)" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="saveAgendamento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIGURAÇÃO — SUBSTITUA AQUI
+// ═══════════════════════════════════════
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycby9SA5ayqmjfgbE8xeWAyw-LeZ07cmIzWqTOS_x-Sl1IoC77xzmm7HnPAqTHcBWWB3p/exec';
+const PIN_CORRETO = '0284'; // ⚠️ Troque pelo PIN real da Elis
+
+// ═══════════════════════════════════════
+// ESTADO
+// ═══════════════════════════════════════
+let pinAtual = '';
+let agendamentos = [];
+let filtroAtivo = 'todos';
+
+// ═══════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('fade');
+    setTimeout(() => {
+      document.getElementById('loader').style.display = 'none';
+      tryBiometric();
+    }, 600);
+  }, 1800);
+
+  document.getElementById('topbar-date').textContent =
+    new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long' });
+});
+
+// ═══════════════════════════════════════
+// LOGIN — PIN
+// ═══════════════════════════════════════
+function showLogin() {
+  document.getElementById('login-screen').classList.add('visible');
+}
+
+function pinPress(digit) {
+  if (pinAtual.length >= 4) return;
+  pinAtual += digit;
+  updateDots();
+  if (pinAtual.length === 4) setTimeout(checkPin, 200);
+}
+
+function pinClear(mode) {
+  if (mode === 'all') pinAtual = '';
+  else pinAtual = pinAtual.slice(0, -1);
+  updateDots();
+  document.getElementById('login-error').textContent = '';
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('d' + i).classList.toggle('filled', i < pinAtual.length);
+  }
+}
+
+function checkPin() {
+  if (pinAtual === PIN_CORRETO) {
+    enterApp();
+  } else {
+    document.getElementById('login-error').textContent = 'PIN incorreto';
+    pinAtual = '';
+    updateDots();
+  }
+}
+
+// ═══════════════════════════════════════
+// BIOMETRIA (Face ID / Digital)
+// ═══════════════════════════════════════
+async function tryBiometric() {
+  if (window.PublicKeyCredential) {
+    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (available) {
+      document.getElementById('bio-btn').style.display = 'flex';
+      showLogin();
+      return;
+    }
+  }
+  showLogin();
+}
+
+async function biometricLogin() {
+  try {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+
+    const cred = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        timeout: 60000,
+        userVerification: 'required',
+        rpId: window.location.hostname || 'localhost',
+        allowCredentials: []
+      }
+    });
+
+    if (cred) enterApp();
+  } catch (e) {
+    // Biometria falhou ou cancelada — usuário usa PIN
+    document.getElementById('login-error').textContent = 'Use o PIN para entrar';
+  }
+}
+
+// ═══════════════════════════════════════
+// ENTRAR NO APP
+// ═══════════════════════════════════════
+function enterApp() {
+  document.getElementById('login-screen').classList.remove('visible');
+  document.getElementById('app').classList.add('visible');
+  loadAgendamentos();
+}
+
+function logout() {
+  document.getElementById('app').classList.remove('visible');
+  pinAtual = '';
+  updateDots();
+  document.getElementById('login-error').textContent = '';
+  showLogin();
+}
+
+// ═══════════════════════════════════════
+// DADOS — GOOGLE SHEETS
+// ═══════════════════════════════════════
+async function loadAgendamentos() {
+  try {
+    const res = await fetch(SHEETS_URL + '?action=list');
+    const data = await res.json();
+    agendamentos = data.agendamentos || [];
+  } catch (e) {
+    // fallback: dados de demonstração
+    agendamentos = [
+      { id: 1, date: '2026-06-23', time: '09:00', name: 'Ana Beatriz', phone: '(51) 98877-1122', status: 'Confirmado', notes: '' },
+      { id: 2, date: '2026-06-23', time: '11:00', name: 'Mariana Costa', phone: '(51) 99766-3344', status: 'Pendente', notes: 'Alergia a produto X' },
+      { id: 3, date: '2026-06-24', time: '14:00', name: 'Fernanda Lima', phone: '(51) 98855-5566', status: 'Confirmado', notes: '' },
+      { id: 4, date: '2026-06-25', time: '10:00', name: 'Juliana Ramos', phone: '(51) 99644-7788', status: 'Realizado', notes: '' },
+      { id: 5, date: '2026-06-26', time: '15:00', name: 'Patrícia Sousa', phone: '(51) 98533-9900', status: 'Cancelado', notes: 'Viagem' },
+    ];
+  }
+  renderAll();
+}
+
+async function refreshData() {
+  showToast('Atualizando...', '');
+  await loadAgendamentos();
+  showToast('Atualizado!', 'success');
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function renderAll() {
+  updateStats();
+  renderTable();
+}
+
+function updateStats() {
+  const total = agendamentos.length;
+  const conf  = agendamentos.filter(a => a.status === 'Confirmado').length;
+  const pend  = agendamentos.filter(a => a.status === 'Pendente').length;
+  const real  = agendamentos.filter(a => a.status === 'Realizado').length;
+
+  animCount('stat-total', total);
+  animCount('stat-confirmados', conf);
+  animCount('stat-pendentes', pend);
+  animCount('stat-realizados', real);
+}
+
+function animCount(id, target) {
+  const el = document.getElementById(id);
+  let cur = 0;
+  const step = Math.max(1, Math.ceil(target / 20));
+  const t = setInterval(() => {
+    cur = Math.min(cur + step, target);
+    el.textContent = cur;
+    if (cur >= target) clearInterval(t);
+  }, 40);
+}
+
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const lista = filtroAtivo === 'todos'
+    ? agendamentos
+    : agendamentos.filter(a => a.status === filtroAtivo);
+
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum agendamento aqui ainda.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = lista.map(a => {
+    const badgeClass = {
+      'Pendente': 'badge-pendente',
+      'Confirmado': 'badge-confirmado',
+      'Cancelado': 'badge-cancelado',
+      'Realizado': 'badge-realizado'
+    }[a.status] || 'badge-pendente';
+
+    const dateFormatted = a.date
+      ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })
+      : '—';
+
+    const actions = a.status === 'Pendente'
+      ? `<button class="act-btn act-confirm" onclick="updateStatus(${a.id},'Confirmado')">Confirmar</button>
+         <button class="act-btn act-cancel" onclick="updateStatus(${a.id},'Cancelado')">Cancelar</button>`
+      : a.status === 'Confirmado'
+      ? `<button class="act-btn act-done" onclick="updateStatus(${a.id},'Realizado')">Realizado</button>
+         <button class="act-btn act-cancel" onclick="updateStatus(${a.id},'Cancelado')">Cancelar</button>`
+      : '—';
+
+    return `<tr>
+      <td>${dateFormatted}</td>
+      <td>${a.time || '—'}</td>
+      <td>${a.name}</td>
+      <td style="color:var(--muted)">${a.phone}</td>
+      <td><span class="status-badge ${badgeClass}">${a.status}</span></td>
+      <td><div class="td-actions">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════
+// FILTROS
+// ═══════════════════════════════════════
+function setFilter(val, btn) {
+  filtroAtivo = val;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+// ═══════════════════════════════════════
+// AÇÕES NA TABELA
+// ═══════════════════════════════════════
+async function updateStatus(id, novoStatus) {
+  const item = agendamentos.find(a => a.id === id);
+  if (!item) return;
+  item.status = novoStatus;
+  renderAll();
+  showToast(`${novoStatus}!`, 'success');
+
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStatus', id, status: novoStatus })
+    });
+  } catch (e) { /* offline mode ok */ }
+}
+
+// ═══════════════════════════════════════
+// MODAL NOVO AGENDAMENTO
+// ═══════════════════════════════════════
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value = today;
+  document.getElementById('f-time').value = '09:00';
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  ['f-name','f-phone','f-date','f-time','f-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+async function saveAgendamento() {
+  const name  = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const date  = document.getElementById('f-date').value;
+  const time  = document.getElementById('f-time').value;
+  const notes = document.getElementById('f-notes').value.trim();
+
+  if (!name || !phone || !date || !time) {
+    showToast('Preencha todos os campos', 'error');
+    return;
+  }
+
+  const novo = {
+    id: Date.now(),
+    name, phone, date, time, notes,
+    status: 'Confirmado'
+  };
+
+  agendamentos.unshift(novo);
+  renderAll();
+  closeModal();
+  showToast('Agendamento salvo!', 'success');
+
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'add', ...novo })
+    });
+  } catch (e) { /* offline ok */ }
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (type || '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2400);
+}
+</script>
+</body>
+</html>
