@@ -29,6 +29,11 @@ function doGet(e) {
 
   if (action === 'list')    return jsonResponse({ agendamentos: getAgendamentos() });
   if (action === 'blocked') return jsonResponse({ dates: getBlockedDates() });
+  if (action === 'horarios') {
+    const date = e.parameter && e.parameter.date;
+    if (!date) return jsonResponse({ times: [] });
+    return jsonResponse({ times: getHorariosOcupados(date) });
+  }
 
   return jsonResponse({ success: false, error: 'Ação desconhecida: ' + action });
 }
@@ -222,6 +227,34 @@ function getAbaAgendamentos() {
   const aba   = sheet.getSheetByName(CONFIG.sheetsNames.agendamentos);
   if (!aba) throw new Error('Aba "Agendamentos" não encontrada. Execute setupPlanilha() primeiro.');
   return aba;
+}
+
+function getHorariosOcupados(date) {
+  const aba  = getAbaAgendamentos();
+  const rows = aba.getDataRange().getValues();
+  const times = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0] && !r[1]) continue;
+    const rowDate   = formatarData(r[1]);
+    const rowStatus = String(r[7] || 'Pendente');
+    if (rowDate === date && rowStatus !== 'Cancelado') {
+      const hora = formatarHora(r[2]);
+      if (hora) times.push(hora);
+    }
+  }
+  return times;
+}
+
+function formatarHora(valor) {
+  if (!valor) return '';
+  if (valor instanceof Date) {
+    const h = String(valor.getHours()).padStart(2, '0');
+    const m = String(valor.getMinutes()).padStart(2, '0');
+    return h + ':' + m;
+  }
+  return String(valor);
 }
 
 function gerarId() {
