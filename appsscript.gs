@@ -568,7 +568,51 @@ function criarConfiguracao(sheet) {
 
 function criarTriggers() {
   ScriptApp.newTrigger('enviarLembretes24hAntes').timeBased().atHour(8).everyDays(1).create();
-  Logger.log('⏰ Trigger criado');
+  ScriptApp.newTrigger('enviarAgendaDia').timeBased().atHour(7).everyDays(1).create();
+  Logger.log('⏰ Triggers criados: lembrete 8h + agenda 7h');
+}
+
+function enviarAgendaDia() {
+  const aba   = getAbaAgendamentos();
+  const rows  = aba.getDataRange().getValues();
+  const hoje  = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const [year, month, day] = hoje.split('-');
+  const dateFormatted = day + '/' + month + '/' + year;
+
+  const weekdays = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const weekday  = weekdays[new Date(hoje + 'T12:00:00').getDay()];
+
+  const AGENDA_WEBHOOK = 'https://flow.ezstudio.com.br/webhook/agenda-dia-elis';
+
+  const lista = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    const rowDate   = formatarData(r[1]);
+    const rowStatus = String(r[7] || '');
+    if (rowDate === hoje && rowStatus !== 'Cancelado') {
+      lista.push({
+        hora:    formatarHora(r[2]),
+        nome:    String(r[3] || ''),
+        servico: String(r[6] || ''),
+        status:  rowStatus
+      });
+    }
+  }
+
+  lista.sort((a, b) => a.hora.localeCompare(b.hora));
+
+  try {
+    UrlFetchApp.fetch(AGENDA_WEBHOOK, {
+      method:      'POST',
+      contentType: 'application/json',
+      payload:     JSON.stringify({ date: hoje, dateFormatted, weekday, total: lista.length, agendamentos: lista }),
+      muteHttpExceptions: true
+    });
+    Logger.log('✅ Agenda do dia enviada: ' + lista.length + ' atendimento(s)');
+  } catch (err) {
+    Logger.log('❌ Erro agenda dia: ' + err);
+  }
 }
 
 function enviarLembretes24hAntes() {

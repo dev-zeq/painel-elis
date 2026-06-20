@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel Elis Miranda</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -318,6 +319,32 @@
   }
   .btn-secondary:hover { border-color: var(--muted); color: var(--text); }
 
+  /* ── HOJE ── */
+  .today-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--gold); border-radius: 2px;
+    padding: 16px 20px; margin-bottom: 24px;
+  }
+  .today-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .today-label { font-size: .65rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .today-weekdate { font-size: .75rem; color: var(--muted); }
+  .today-item {
+    display: flex; gap: 12px; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .82rem;
+  }
+  .today-item:last-child { border-bottom: none; }
+  .today-time { color: var(--gold); font-weight: 600; min-width: 48px; font-size: .85rem; }
+  .today-name { flex: 1; }
+  .today-svc { color: var(--muted); font-size: .74rem; }
+  .today-empty { color: var(--muted); font-size: .8rem; font-style: italic; }
+
+  /* ── RELATÓRIOS ── */
+  .rep-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-top: 20px; }
+  @media (max-width: 680px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 2px; padding: 20px; }
+  .chart-title { font-size: .65rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+
   /* ── TOAST ── */
   #toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -450,12 +477,23 @@
   <!-- TAB BAR -->
   <div class="tab-bar">
     <button class="tab-btn active" id="tab-btn-agendamentos" onclick="switchTab('agendamentos')">Agendamentos</button>
+    <button class="tab-btn" id="tab-btn-relatorios" onclick="switchTab('relatorios')">Relatórios</button>
     <button class="tab-btn" id="tab-btn-servicos" onclick="switchTab('servicos')">Serviços</button>
     <button class="tab-btn" id="tab-btn-bloqueios" onclick="switchTab('bloqueios')">Indisponíveis</button>
   </div>
 
   <!-- PANE: AGENDAMENTOS -->
   <div id="tab-agendamentos" class="tab-pane active">
+
+    <!-- HOJE -->
+    <div class="today-card">
+      <div class="today-header">
+        <span class="today-label">Hoje</span>
+        <span class="today-weekdate" id="today-weekdate"></span>
+      </div>
+      <div id="today-list"><span class="today-empty">Carregando...</span></div>
+    </div>
+
     <div class="stats">
       <div class="stat-card total">
         <div class="stat-label">Total</div>
@@ -505,6 +543,48 @@
     </div>
   </div>
 
+  <!-- PANE: RELATÓRIOS -->
+  <div id="tab-relatorios" class="tab-pane">
+    <div class="section-title" style="margin-bottom:20px">Relatórios <span>e estatísticas</span></div>
+
+    <div class="rep-filters">
+      <button class="filter-btn active" id="rep-btn-mes" onclick="setReportPeriod('mes',this)">Mês atual</button>
+      <button class="filter-btn" id="rep-btn-semana" onclick="setReportPeriod('semana',this)">Esta semana</button>
+      <button class="filter-btn" id="rep-btn-hoje" onclick="setReportPeriod('hoje',this)">Hoje</button>
+      <button class="filter-btn" id="rep-btn-ano" onclick="setReportPeriod('ano',this)">Este ano</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card total">
+        <div class="stat-label">Total</div>
+        <div class="stat-value" id="rep-total">0</div>
+      </div>
+      <div class="stat-card confirm">
+        <div class="stat-label">Confirmados</div>
+        <div class="stat-value" id="rep-confirmados">0</div>
+      </div>
+      <div class="stat-card done">
+        <div class="stat-label">Realizados</div>
+        <div class="stat-value" id="rep-realizados">0</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-label">Cancelados</div>
+        <div class="stat-value" id="rep-cancelados">0</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Atendimentos por dia</div>
+        <canvas id="chart-bar" height="200"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Por status</div>
+        <canvas id="chart-donut" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- PANE: SERVIÇOS -->
   <div id="tab-servicos" class="tab-pane">
     <div class="section-title" style="margin-bottom:20px">Serviços <span>e preços</span></div>
@@ -542,15 +622,21 @@
 
     <div class="section-title" style="margin-bottom:16px">Horários <span>bloqueados</span></div>
     <div class="blocked-body">
-      <div class="blocked-add">
+      <div class="blocked-add" style="flex-wrap:wrap">
         <input type="date" id="block-hour-date" class="block-input" />
-        <select id="block-hour-time" class="block-input" style="flex:0 0 110px">
-          <option value="">Horário...</option>
+        <select id="block-hour-from" class="block-input" style="flex:0 0 100px">
+          <option value="">De...</option>
           <option>09:00</option><option>10:00</option><option>11:00</option>
           <option>12:00</option><option>13:00</option><option>14:00</option>
           <option>15:00</option><option>16:00</option><option>17:00</option>
         </select>
-        <button class="act-btn act-cancel" onclick="addBlockedHour()">Bloquear horário</button>
+        <select id="block-hour-to" class="block-input" style="flex:0 0 100px">
+          <option value="">Até...</option>
+          <option>09:00</option><option>10:00</option><option>11:00</option>
+          <option>12:00</option><option>13:00</option><option>14:00</option>
+          <option>15:00</option><option>16:00</option><option>17:00</option>
+        </select>
+        <button class="act-btn act-cancel" onclick="addBlockedHour()">Bloquear</button>
       </div>
       <div id="blocked-hours-list" class="blocked-list" style="flex-direction:column;gap:6px"></div>
     </div>
@@ -804,6 +890,7 @@ async function refreshData() {
 function renderAll() {
   updateStats();
   renderTable();
+  renderHoje();
 }
 
 function updateStats() {
@@ -882,6 +969,129 @@ function setFilter(val, btn) {
 }
 
 // ═══════════════════════════════════════
+// AGENDA DO DIA
+// ═══════════════════════════════════════
+function renderHoje() {
+  const hoje = new Date().toISOString().split('T')[0];
+  const list  = document.getElementById('today-list');
+  const wd    = document.getElementById('today-weekdate');
+
+  if (wd) wd.textContent = new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' });
+
+  const deHoje = agendamentos
+    .filter(a => a.date === hoje && a.status !== 'Cancelado')
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  if (!deHoje.length) {
+    list.innerHTML = '<span class="today-empty">Nenhum agendamento para hoje.</span>';
+    return;
+  }
+
+  list.innerHTML = deHoje.map(a => `
+    <div class="today-item">
+      <span class="today-time">${a.time || '—'}</span>
+      <span class="today-name">${a.name}</span>
+      <span class="today-svc">${a.servico || ''}</span>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════
+// RELATÓRIOS
+// ═══════════════════════════════════════
+let chartBar = null;
+let chartDonut = null;
+let reportPeriod = 'mes';
+
+function setReportPeriod(period, btn) {
+  reportPeriod = period;
+  document.querySelectorAll('.rep-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderReport(period);
+}
+
+function renderReport(period) {
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+
+  const filtered = agendamentos.filter(a => {
+    if (!a.date) return false;
+    const d = new Date(a.date + 'T00:00:00');
+    if (period === 'hoje')   return a.date === hoje.toISOString().split('T')[0];
+    if (period === 'semana') {
+      const dom = new Date(hoje); dom.setDate(hoje.getDate() - hoje.getDay());
+      const sab = new Date(dom); sab.setDate(dom.getDate() + 6);
+      return d >= dom && d <= sab;
+    }
+    if (period === 'mes') return d.getMonth() === hoje.getMonth() && d.getFullYear() === hoje.getFullYear();
+    if (period === 'ano') return d.getFullYear() === hoje.getFullYear();
+    return true;
+  });
+
+  const conf = filtered.filter(a => a.status === 'Confirmado').length;
+  const real = filtered.filter(a => a.status === 'Realizado').length;
+  const canc = filtered.filter(a => a.status === 'Cancelado').length;
+
+  document.getElementById('rep-total').textContent      = filtered.length;
+  document.getElementById('rep-confirmados').textContent = conf;
+  document.getElementById('rep-realizados').textContent  = real;
+  document.getElementById('rep-cancelados').textContent  = canc;
+
+  renderBarChart(filtered, period);
+  renderDonutChart(filtered.length - canc, conf, real, canc);
+}
+
+function renderBarChart(data, period) {
+  // Agrupa por data
+  const counts = {};
+  data.forEach(a => {
+    if (!counts[a.date]) counts[a.date] = 0;
+    counts[a.date]++;
+  });
+
+  const labels = Object.keys(counts).sort().map(d =>
+    new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' })
+  );
+  const values = Object.keys(counts).sort().map(d => counts[d]);
+
+  const ctx = document.getElementById('chart-bar').getContext('2d');
+  if (chartBar) chartBar.destroy();
+  chartBar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Agendamentos', data: values, backgroundColor: 'rgba(201,169,110,.5)', borderColor: '#C9A96E', borderWidth: 1, borderRadius: 3 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#7A6E78', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { ticks: { color: '#7A6E78', stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderDonutChart(total, conf, real, canc) {
+  const pend = total - conf - real;
+  const ctx = document.getElementById('chart-donut').getContext('2d');
+  if (chartDonut) chartDonut.destroy();
+  chartDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Confirmados', 'Realizados', 'Pendentes'],
+      datasets: [{ data: [conf, real, Math.max(0, pend)], backgroundColor: ['rgba(76,175,125,.7)', 'rgba(122,110,120,.5)', 'rgba(201,169,110,.6)'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#7A6E78', font: { size: 11 }, boxWidth: 12 } } },
+      cutout: '65%'
+    }
+  });
+}
+
+// ═══════════════════════════════════════
 // AÇÕES NA TABELA
 // ═══════════════════════════════════════
 async function updateStatus(id, novoStatus) {
@@ -907,10 +1117,11 @@ async function updateStatus(id, novoStatus) {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
-          name:  item.name,
-          phone: item.phone,
-          date:  item.date,
-          time:  item.time,
+          name:    item.name,
+          phone:   item.phone,
+          date:    item.date,
+          time:    item.time,
+          servico: item.servico || '',
         }),
       }).catch(() => {});
     } catch (e) { /* falha silenciosa */ }
@@ -1015,21 +1226,32 @@ function renderBlockedHours() {
 
 function addBlockedHour() {
   const date = document.getElementById('block-hour-date').value;
-  const hora = document.getElementById('block-hour-time').value;
-  if (!date || !hora) { showToast('Selecione a data e o horário', 'error'); return; }
+  const from = document.getElementById('block-hour-from').value;
+  const to   = document.getElementById('block-hour-to').value;
+  if (!date || !from || !to) { showToast('Selecione a data, horário de início e fim', 'error'); return; }
 
-  if (!blockedHours.some(b => b.date === date && b.hora === hora)) {
-    blockedHours.push({ date, hora });
-  }
+  const fromH = parseInt(from.split(':')[0]);
+  const toH   = parseInt(to.split(':')[0]);
+  if (fromH > toH) { showToast('O horário "De" deve ser antes do "Até"', 'error'); return; }
+
+  const horas = [];
+  for (let h = fromH; h <= toH; h++) horas.push(String(h).padStart(2,'0') + ':00');
+
+  horas.forEach(hora => {
+    if (!blockedHours.some(b => b.date === date && b.hora === hora)) {
+      blockedHours.push({ date, hora });
+      fetch(SHEETS_URL, {
+        method: 'POST', mode: 'no-cors',
+        body: new URLSearchParams({ action: 'blockHour', date, hora }),
+      }).catch(() => {});
+    }
+  });
+
   document.getElementById('block-hour-date').value = '';
-  document.getElementById('block-hour-time').value = '';
+  document.getElementById('block-hour-from').value = '';
+  document.getElementById('block-hour-to').value   = '';
   renderBlockedHours();
-
-  fetch(SHEETS_URL, {
-    method: 'POST', mode: 'no-cors',
-    body: new URLSearchParams({ action: 'blockHour', date, hora }),
-  }).catch(() => {});
-  showToast('Horário bloqueado!', 'success');
+  showToast(`${horas.length} horário(s) bloqueado(s)!`, 'success');
 }
 
 function removeBlockedHour(date, hora) {
@@ -1043,7 +1265,7 @@ function removeBlockedHour(date, hora) {
 }
 
 function switchTab(name) {
-  ['agendamentos', 'servicos', 'bloqueios'].forEach(t => {
+  ['agendamentos', 'relatorios', 'servicos', 'bloqueios'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
     document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
   });
@@ -1053,7 +1275,8 @@ function switchTab(name) {
     if (!blockedDates.length) loadBlockedDates();
     if (!blockedHours.length) loadBlockedHours();
   }
-  if (name === 'servicos' && !servicosList.length) loadServicosPainel();
+  if (name === 'servicos'   && !servicosList.length) loadServicosPainel();
+  if (name === 'relatorios') renderReport('mes');
 }
 
 // ═══════════════════════════════════════
