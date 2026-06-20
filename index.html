@@ -308,6 +308,38 @@
   #toast.error { border-color: var(--cancel); color: var(--cancel); }
 
   /* ── ADD BTN ── */
+  /* ── DIAS BLOQUEADOS ── */
+  .blocked-panel {
+    max-width: 900px; margin: 0 auto 28px; padding: 0 24px;
+  }
+  .blocked-header {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 2px; padding: 12px 16px; cursor: pointer;
+    font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); transition: color .2s;
+  }
+  .blocked-header:hover { color: var(--gold); }
+  .blocked-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 2px 2px; padding: 16px; }
+  .blocked-add { display: flex; gap: 10px; margin-bottom: 16px; }
+  .block-input {
+    flex: 1; padding: 8px 12px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 2px;
+    color: var(--text); font-family: var(--font-body); font-size: .82rem;
+    color-scheme: dark;
+  }
+  .blocked-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .blocked-tag {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(201,110,110,.1); border: 1px solid var(--cancel);
+    color: var(--cancel); border-radius: 2px; padding: 4px 10px;
+    font-size: .72rem; letter-spacing: .08em;
+  }
+  .blocked-tag button {
+    background: none; border: none; color: var(--cancel);
+    cursor: pointer; font-size: .9rem; padding: 0; line-height: 1;
+  }
+
   .fab {
     position: fixed; bottom: 24px; right: 24px;
     width: 50px; height: 50px; border-radius: 2px;
@@ -423,6 +455,21 @@
         </tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- DIAS BLOQUEADOS -->
+<div class="blocked-panel" id="blocked-panel">
+  <div class="blocked-header" onclick="toggleBlocked()">
+    <span>🚫 Dias Indisponíveis</span>
+    <span id="blocked-toggle-icon">▸</span>
+  </div>
+  <div class="blocked-body" id="blocked-body" style="display:none">
+    <div class="blocked-add">
+      <input type="date" id="block-date-input" class="block-input" />
+      <button class="act-btn act-cancel" onclick="addBlockedDate()">Bloquear</button>
+    </div>
+    <div id="blocked-list" class="blocked-list"></div>
   </div>
 </div>
 
@@ -782,6 +829,71 @@ async function updateStatus(id, novoStatus) {
       }).catch(() => {});
     } catch (e) { /* falha silenciosa */ }
   }
+}
+
+// ═══════════════════════════════════════
+// DIAS BLOQUEADOS
+// ═══════════════════════════════════════
+let blockedDates = [];
+
+async function loadBlockedDates() {
+  try {
+    const res = await fetch(SHEETS_URL + '?action=blocked');
+    const data = await res.json();
+    blockedDates = data.dates || [];
+    renderBlockedDates();
+  } catch (e) {}
+}
+
+function renderBlockedDates() {
+  const list = document.getElementById('blocked-list');
+  if (!blockedDates.length) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:.75rem;">Nenhum dia bloqueado.</span>';
+    return;
+  }
+  list.innerHTML = blockedDates.map(d => {
+    const label = new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+    return `<span class="blocked-tag">${label}<button onclick="removeBlockedDate('${d}')" title="Desbloquear">×</button></span>`;
+  }).join('');
+}
+
+async function addBlockedDate() {
+  const input = document.getElementById('block-date-input');
+  const date  = input.value;
+  if (!date) return;
+
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'blockDate', date }),
+  }).catch(() => {});
+
+  if (!blockedDates.includes(date)) {
+    blockedDates.push(date);
+    blockedDates.sort();
+  }
+  input.value = '';
+  renderBlockedDates();
+  showToast('Dia bloqueado!', 'success');
+}
+
+async function removeBlockedDate(date) {
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'unblockDate', date }),
+  }).catch(() => {});
+
+  blockedDates = blockedDates.filter(d => d !== date);
+  renderBlockedDates();
+  showToast('Dia desbloqueado!', 'success');
+}
+
+function toggleBlocked() {
+  const body = document.getElementById('blocked-body');
+  const icon = document.getElementById('blocked-toggle-icon');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  icon.textContent = open ? '▾' : '▸';
+  if (open && !blockedDates.length) loadBlockedDates();
 }
 
 // ═══════════════════════════════════════
