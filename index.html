@@ -117,6 +117,28 @@
   .topbar-brand { font-family: var(--font-display); font-size: 1.2rem; font-weight: 300; letter-spacing: .12em; color: var(--gold); }
   .topbar-date { font-size: .72rem; color: var(--muted); letter-spacing: .08em; }
   .topbar-actions { display: flex; gap: 10px; align-items: center; }
+
+  /* ── TAB BAR ── */
+  .tab-bar {
+    display: flex; border-bottom: 1px solid var(--border);
+    background: var(--surface); padding: 0 24px;
+    position: sticky; top: 57px; z-index: 9;
+  }
+  .tab-btn {
+    padding: 13px 20px; font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+    border: none; background: none; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color .2s, border-color .2s; font-family: var(--font-body);
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  .tab-pane { display: none; padding: 24px; max-width: 900px; margin: 0 auto; width: 100%; }
+  .tab-pane.active { display: block; }
+  @media (max-width: 680px) { .tab-pane { padding: 16px; } }
+
   .btn-icon {
     width: 36px; height: 36px; background: var(--card); border: 1px solid var(--border);
     border-radius: 2px; display: flex; align-items: center; justify-content: center;
@@ -309,18 +331,7 @@
 
   /* ── ADD BTN ── */
   /* ── DIAS BLOQUEADOS ── */
-  .blocked-panel {
-    max-width: 900px; margin: 0 auto 28px; padding: 0 24px;
-  }
-  .blocked-header {
-    display: flex; justify-content: space-between; align-items: center;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 2px; padding: 12px 16px; cursor: pointer;
-    font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
-    color: var(--muted); transition: color .2s;
-  }
-  .blocked-header:hover { color: var(--gold); }
-  .blocked-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 2px 2px; padding: 16px; }
+  .blocked-body { padding: 0; }
   .blocked-add { display: flex; gap: 10px; margin-bottom: 16px; }
   .block-input {
     flex: 1; padding: 8px 12px; background: var(--card);
@@ -436,8 +447,15 @@
     </div>
   </div>
 
-  <div class="main">
-    <!-- STATS -->
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-btn-agendamentos" onclick="switchTab('agendamentos')">Agendamentos</button>
+    <button class="tab-btn" id="tab-btn-servicos" onclick="switchTab('servicos')">Serviços</button>
+    <button class="tab-btn" id="tab-btn-bloqueios" onclick="switchTab('bloqueios')">Indisponíveis</button>
+  </div>
+
+  <!-- PANE: AGENDAMENTOS -->
+  <div id="tab-agendamentos" class="tab-pane active">
     <div class="stats">
       <div class="stat-card total">
         <div class="stat-label">Total</div>
@@ -457,7 +475,6 @@
       </div>
     </div>
 
-    <!-- TABLE -->
     <div class="section-header">
       <div class="section-title">Agendamentos <span>do mês</span></div>
       <div class="filters">
@@ -487,30 +504,10 @@
       </table>
     </div>
   </div>
-</div>
 
-<!-- DIAS BLOQUEADOS -->
-<div class="blocked-panel" id="blocked-panel">
-  <div class="blocked-header" onclick="toggleBlocked()">
-    <span>🚫 Dias Indisponíveis</span>
-    <span id="blocked-toggle-icon">▸</span>
-  </div>
-  <div class="blocked-body" id="blocked-body" style="display:none">
-    <div class="blocked-add">
-      <input type="date" id="block-date-input" class="block-input" />
-      <button class="act-btn act-cancel" onclick="addBlockedDate()">Bloquear</button>
-    </div>
-    <div id="blocked-list" class="blocked-list"></div>
-  </div>
-</div>
-
-<!-- SERVIÇOS E PREÇOS -->
-<div class="blocked-panel" id="servicos-panel">
-  <div class="blocked-header" onclick="toggleServicos()">
-    <span>Serviços e Preços</span>
-    <span id="servicos-toggle-icon">▸</span>
-  </div>
-  <div class="blocked-body" id="servicos-body" style="display:none">
+  <!-- PANE: SERVIÇOS -->
+  <div id="tab-servicos" class="tab-pane">
+    <div class="section-title" style="margin-bottom:20px">Serviços <span>e preços</span></div>
     <div class="svc-add-form">
       <div class="svc-form-row">
         <select class="block-input svc-cat" id="svc-cat-input">
@@ -530,6 +527,19 @@
     </div>
     <div id="servicos-list"><div style="color:var(--muted);font-size:.8rem;padding:10px 0">Carregando...</div></div>
   </div>
+
+  <!-- PANE: INDISPONÍVEIS -->
+  <div id="tab-bloqueios" class="tab-pane">
+    <div class="section-title" style="margin-bottom:20px">Dias <span>indisponíveis</span></div>
+    <div class="blocked-body">
+      <div class="blocked-add">
+        <input type="date" id="block-date-input" class="block-input" />
+        <button class="act-btn act-cancel" onclick="addBlockedDate()">Bloquear</button>
+      </div>
+      <div id="blocked-list" class="blocked-list"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- FAB -->
@@ -946,13 +956,15 @@ async function removeBlockedDate(date) {
   showToast('Dia desbloqueado!', 'success');
 }
 
-function toggleBlocked() {
-  const body = document.getElementById('blocked-body');
-  const icon = document.getElementById('blocked-toggle-icon');
-  const open = body.style.display === 'none';
-  body.style.display = open ? 'block' : 'none';
-  icon.textContent = open ? '▾' : '▸';
-  if (open && !blockedDates.length) loadBlockedDates();
+function switchTab(name) {
+  ['agendamentos', 'servicos', 'bloqueios'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+  });
+  document.querySelector('.fab').style.display = name === 'agendamentos' ? '' : 'none';
+
+  if (name === 'bloqueios' && !blockedDates.length) loadBlockedDates();
+  if (name === 'servicos'  && !servicosList.length)  loadServicosPainel();
 }
 
 // ═══════════════════════════════════════
@@ -960,14 +972,6 @@ function toggleBlocked() {
 // ═══════════════════════════════════════
 let servicosList = [];
 
-function toggleServicos() {
-  const body = document.getElementById('servicos-body');
-  const icon = document.getElementById('servicos-toggle-icon');
-  const open = body.style.display === 'none';
-  body.style.display = open ? 'block' : 'none';
-  icon.textContent = open ? '▾' : '▸';
-  if (open && !servicosList.length) loadServicosPainel();
-}
 
 async function loadServicosPainel() {
   try {
