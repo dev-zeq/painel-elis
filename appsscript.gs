@@ -511,16 +511,41 @@ function criarTriggers() {
 }
 
 function enviarLembretes24hAntes() {
-  const aba   = getAbaAgendamentos();
-  const rows  = aba.getDataRange().getValues();
+  const aba    = getAbaAgendamentos();
+  const rows   = aba.getDataRange().getValues();
   const amanha = new Date();
   amanha.setDate(amanha.getDate() + 1);
-  const dataAmanha = amanha.toLocaleDateString('pt-BR');
+  const dataAmanha = Utilities.formatDate(amanha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  const LEMBRETE_WEBHOOK = 'https://flow.ezstudio.com.br/webhook/lembrete-elis';
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
-    if (formatarData(r[1]) === dataAmanha && r[7] === 'Confirmado') {
-      Logger.log('🔔 Lembrete para: ' + r[3] + ' — ' + r[2]);
+    if (!r[0]) continue;
+
+    const rowDate   = formatarData(r[1]);
+    const rowStatus = String(r[7] || '');
+
+    if (rowDate === dataAmanha && rowStatus === 'Confirmado') {
+      const payload = {
+        name:    String(r[3] || ''),
+        phone:   String(r[4] || ''),
+        date:    rowDate,
+        time:    formatarHora(r[2]),
+        servico: String(r[6] || '')
+      };
+
+      try {
+        UrlFetchApp.fetch(LEMBRETE_WEBHOOK, {
+          method:      'POST',
+          contentType: 'application/json',
+          payload:     JSON.stringify(payload),
+          muteHttpExceptions: true
+        });
+        Logger.log('✅ Lembrete enviado: ' + payload.name + ' — ' + rowDate + ' ' + payload.time);
+      } catch (err) {
+        Logger.log('❌ Erro lembrete ' + payload.name + ': ' + err);
+      }
     }
   }
 }
