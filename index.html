@@ -179,6 +179,49 @@
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: var(--card); }
 
+  @media (max-width: 680px) {
+    .main { padding: 16px; }
+    .table-wrap { background: transparent; border: none; overflow: visible; }
+    table { display: block; }
+    thead { display: none; }
+    tbody { display: flex; flex-direction: column; gap: 10px; }
+    tr {
+      display: block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+    }
+    tr:hover td { background: transparent; }
+    td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      border: none;
+      font-size: .83rem;
+    }
+    td::before {
+      content: attr(data-label);
+      font-size: .62rem;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--muted);
+      flex-shrink: 0;
+      margin-right: 12px;
+    }
+    td[data-label="Ações"] {
+      display: block;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border) !important;
+    }
+    td[data-label="Ações"]::before { display: none; }
+    .td-actions { display: flex; gap: 8px; width: 100%; }
+    .act-btn { flex: 1; padding: 10px 6px; font-size: .75rem; text-align: center; }
+    tr:last-child td { border-bottom: none; }
+  }
+
   .status-badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 2px; font-size: .68rem;
@@ -634,12 +677,12 @@ function renderTable() {
       : '—';
 
     return `<tr>
-      <td>${dateFormatted}</td>
-      <td>${a.time || '—'}</td>
-      <td>${a.name}</td>
-      <td style="color:var(--muted)">${a.phone}</td>
-      <td><span class="status-badge ${badgeClass}">${a.status}</span></td>
-      <td><div class="td-actions">${actions}</div></td>
+      <td data-label="Data">${dateFormatted}</td>
+      <td data-label="Hora">${a.time || '—'}</td>
+      <td data-label="Cliente">${a.name}</td>
+      <td data-label="Telefone" style="color:var(--muted)">${a.phone}</td>
+      <td data-label="Status"><span class="status-badge ${badgeClass}">${a.status}</span></td>
+      <td data-label="Ações"><div class="td-actions">${actions}</div></td>
     </tr>`;
   }).join('');
 }
