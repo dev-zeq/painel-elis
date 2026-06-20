@@ -573,6 +573,19 @@
       </div>
     </div>
 
+    <div class="stats" style="margin-top:12px">
+      <div class="stat-card total" style="grid-column:span 2">
+        <div class="stat-label">Receita Realizada</div>
+        <div class="stat-value" id="rep-receita-real" style="font-size:1.6rem">R$ 0</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:4px">Agendamentos realizados</div>
+      </div>
+      <div class="stat-card confirm" style="grid-column:span 2">
+        <div class="stat-label">Receita Prevista</div>
+        <div class="stat-value" id="rep-receita-prev" style="font-size:1.6rem">R$ 0</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:4px">Confirmados + realizados</div>
+      </div>
+    </div>
+
     <div class="charts-row">
       <div class="chart-card">
         <div class="chart-title">Atendimentos por dia</div>
@@ -1032,10 +1045,24 @@ function renderReport(period) {
   const real = filtered.filter(a => a.status === 'Realizado').length;
   const canc = filtered.filter(a => a.status === 'Cancelado').length;
 
-  document.getElementById('rep-total').textContent      = filtered.length;
-  document.getElementById('rep-confirmados').textContent = conf;
-  document.getElementById('rep-realizados').textContent  = real;
-  document.getElementById('rep-cancelados').textContent  = canc;
+  // Receita — cruza serviço do agendamento com preço da aba Serviços
+  const precoMap = {};
+  servicosList.forEach(s => { precoMap[s.servico] = s.preco || 0; });
+
+  const receitaReal = filtered
+    .filter(a => a.status === 'Realizado')
+    .reduce((sum, a) => sum + (precoMap[a.servico] || 0), 0);
+
+  const receitaPrev = filtered
+    .filter(a => a.status === 'Realizado' || a.status === 'Confirmado')
+    .reduce((sum, a) => sum + (precoMap[a.servico] || 0), 0);
+
+  document.getElementById('rep-total').textContent       = filtered.length;
+  document.getElementById('rep-confirmados').textContent  = conf;
+  document.getElementById('rep-realizados').textContent   = real;
+  document.getElementById('rep-cancelados').textContent   = canc;
+  document.getElementById('rep-receita-real').textContent = 'R$ ' + receitaReal.toLocaleString('pt-BR');
+  document.getElementById('rep-receita-prev').textContent = 'R$ ' + receitaPrev.toLocaleString('pt-BR');
 
   renderBarChart(filtered, period);
   renderDonutChart(filtered.length - canc, conf, real, canc);
@@ -1275,8 +1302,12 @@ function switchTab(name) {
     if (!blockedDates.length) loadBlockedDates();
     if (!blockedHours.length) loadBlockedHours();
   }
-  if (name === 'servicos'   && !servicosList.length) loadServicosPainel();
-  if (name === 'relatorios') renderReport('mes');
+  if (name === 'servicos' && !servicosList.length) loadServicosPainel();
+  if (name === 'relatorios') {
+    const doRender = () => renderReport(reportPeriod);
+    if (!servicosList.length) loadServicosPainel().then(doRender);
+    else doRender();
+  }
 }
 
 // ═══════════════════════════════════════
