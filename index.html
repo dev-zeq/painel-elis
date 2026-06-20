@@ -426,7 +426,7 @@
 // ═══════════════════════════════════════
 // CONFIGURAÇÃO — SUBSTITUA AQUI
 // ═══════════════════════════════════════
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycby9SA5ayqmjfgbE8xeWAyw-LeZ07cmIzWqTOS_x-Sl1IoC77xzmm7HnPAqTHcBWWB3p/exec';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbysYdOKGxNN_II8nWIAmxnflex5qPcBioGHuIxtk5K-SjqUOVX67Ecw2HpQhwCFp0M/exec';
 const PIN_CORRETO = '0284'; // ⚠️ Troque pelo PIN real da Elis
 
 // ═══════════════════════════════════════
@@ -664,10 +664,11 @@ async function updateStatus(id, novoStatus) {
   showToast(`${novoStatus}!`, 'success');
 
   try {
-    await fetch(SHEETS_URL, {
+    fetch(SHEETS_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'updateStatus', id, status: novoStatus })
-    });
+      mode:   'no-cors',
+      body:   new URLSearchParams({ action: 'updateStatus', id: String(id), status: novoStatus }),
+    }).catch(() => {});
   } catch (e) { /* offline mode ok */ }
 }
 
@@ -712,10 +713,11 @@ async function saveAgendamento() {
   showToast('Agendamento salvo!', 'success');
 
   try {
-    await fetch(SHEETS_URL, {
+    fetch(SHEETS_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'add', ...novo })
-    });
+      mode:   'no-cors',
+      body:   new URLSearchParams({ action: 'add', ...novo }),
+    }).catch(() => {});
   } catch (e) { /* offline ok */ }
 }
 
