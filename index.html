@@ -531,6 +531,10 @@ function updateDots() {
 function checkPin() {
   if (pinAtual === PIN_CORRETO) {
     enterApp();
+    // Após PIN correto, oferece cadastrar a digital se ainda não foi feito
+    if (window.PublicKeyCredential && !localStorage.getItem('elis_cred')) {
+      setTimeout(oferecerCadastroDigital, 600);
+    }
   } else {
     document.getElementById('login-error').textContent = 'PIN incorreto';
     pinAtual = '';
@@ -542,17 +546,17 @@ function checkPin() {
 // BIOMETRIA (Digital / Face ID)
 // ═══════════════════════════════════════
 async function tryBiometric() {
-  if (window.PublicKeyCredential) {
-    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if (available) {
-      document.getElementById('bio-btn').style.display = 'flex';
-      showLogin();
-      // Tenta disparar a digital automaticamente ao abrir
-      biometricLogin(true);
-      return;
-    }
-  }
+  if (!window.PublicKeyCredential) { showLogin(); return; }
+  const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  if (!available) { showLogin(); return; }
+
+  document.getElementById('bio-btn').style.display = 'flex';
   showLogin();
+
+  // Auto-dispara só se já tiver digital cadastrada
+  if (localStorage.getItem('elis_cred')) {
+    biometricLogin(true);
+  }
 }
 
 async function biometricLogin(silencioso = false) {
@@ -560,14 +564,16 @@ async function biometricLogin(silencioso = false) {
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
 
+    const credIdStr = localStorage.getItem('elis_cred');
+    const allowCredentials = credIdStr ? [{
+      id: Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0)),
+      type: 'public-key',
+      transports: ['internal']
+    }] : [];
+
     const cred = await navigator.credentials.get({
-      publicKey: {
-        challenge,
-        timeout: 60000,
-        userVerification: 'required',
-        rpId: window.location.hostname,
-        allowCredentials: []
-      }
+      publicKey: { challenge, timeout: 60000, userVerification: 'required',
+                   rpId: window.location.hostname, allowCredentials }
     });
 
     if (cred) enterApp();
@@ -575,6 +581,41 @@ async function biometricLogin(silencioso = false) {
     if (!silencioso) {
       document.getElementById('login-error').textContent = 'Use o PIN para entrar';
     }
+  }
+}
+
+async function oferecerCadastroDigital() {
+  try {
+    const challenge = new Uint8Array(32);
+    crypto.getRandomValues(challenge);
+    const userId = new Uint8Array(16);
+    crypto.getRandomValues(userId);
+
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'Painel Elis', id: window.location.hostname },
+        user: { id: userId, name: 'elis', displayName: 'Elis Miranda' },
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7 },
+          { type: 'public-key', alg: -257 }
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          residentKey: 'preferred'
+        },
+        timeout: 60000
+      }
+    });
+
+    if (cred) {
+      const credId = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+      localStorage.setItem('elis_cred', credId);
+      showToast('Digital cadastrada! Próxima vez entre com a digital.', 'success');
+    }
+  } catch (e) {
+    // Usuário cancelou o cadastro — sem problema
   }
 }
 
