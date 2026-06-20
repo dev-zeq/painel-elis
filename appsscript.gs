@@ -7,10 +7,11 @@
 
 const CONFIG = {
   sheetsNames: {
-    agendamentos: 'Agendamentos',
-    dashboard:    'Dashboard',
-    config:       'Configuração',
-    servicos:     'Serviços'
+    agendamentos:  'Agendamentos',
+    dashboard:     'Dashboard',
+    config:        'Configuração',
+    servicos:      'Serviços',
+    bloqueiosHora: 'BloqueiosHora'
   },
   colors: {
     headerBg:    '#E91E63',
@@ -35,7 +36,8 @@ function doGet(e) {
     if (!date) return jsonResponse({ times: [] });
     return jsonResponse({ times: getHorariosOcupados(date) });
   }
-  if (action === 'servicos') return jsonResponse({ servicos: getServicos() });
+  if (action === 'servicos')      return jsonResponse({ servicos: getServicos() });
+  if (action === 'blockedHours')  return jsonResponse({ hours: getBlockedHours() });
 
   return jsonResponse({ success: false, error: 'Ação desconhecida: ' + action });
 }
@@ -56,6 +58,8 @@ function doPost(e) {
     if (action === 'addServico')    return addServico(dados);
     if (action === 'updateServico') return updateServico(dados);
     if (action === 'deleteServico') return deleteServico(dados);
+    if (action === 'blockHour')     return blockHour(dados);
+    if (action === 'unblockHour')   return unblockHour(dados);
 
     return jsonResponse({ success: false, error: 'Ação desconhecida: ' + action });
 
@@ -224,6 +228,56 @@ function unblockDate(dados) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// ⏰ Horários Bloqueados — CRUD
+// ═══════════════════════════════════════════════════════════════════
+
+function getBlockedHours() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const aba   = sheet.getSheetByName(CONFIG.sheetsNames.bloqueiosHora);
+  if (!aba || aba.getLastRow() === 0) return [];
+
+  return aba.getDataRange().getValues()
+    .map(r => ({ date: formatarData(r[0]), hora: String(r[1] || '') }))
+    .filter(r => r.date && r.hora);
+}
+
+function blockHour(dados) {
+  if (!dados.date || !dados.hora) return jsonResponse({ success: false, error: 'date e hora são obrigatórios' });
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  let aba = sheet.getSheetByName(CONFIG.sheetsNames.bloqueiosHora);
+  if (!aba) aba = sheet.insertSheet(CONFIG.sheetsNames.bloqueiosHora);
+
+  // Evita duplicata
+  const existing = getBlockedHours();
+  if (existing.some(r => r.date === dados.date && r.hora === dados.hora)) {
+    return jsonResponse({ success: true, message: 'Já bloqueado' });
+  }
+
+  aba.appendRow([dados.date, dados.hora]);
+  Logger.log('⏰ Horário bloqueado: ' + dados.date + ' ' + dados.hora);
+  return jsonResponse({ success: true });
+}
+
+function unblockHour(dados) {
+  if (!dados.date || !dados.hora) return jsonResponse({ success: false, error: 'date e hora são obrigatórios' });
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const aba   = sheet.getSheetByName(CONFIG.sheetsNames.bloqueiosHora);
+  if (!aba)   return jsonResponse({ success: false, error: 'Nenhum horário bloqueado' });
+
+  const rows = aba.getDataRange().getValues();
+  for (let i = 0; i < rows.length; i++) {
+    if (formatarData(rows[i][0]) === dados.date && String(rows[i][1]) === dados.hora) {
+      aba.deleteRow(i + 1);
+      Logger.log('✅ Horário desbloqueado: ' + dados.date + ' ' + dados.hora);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Horário não encontrado' });
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // 💅 Serviços — CRUD
 // ═══════════════════════════════════════════════════════════════════
 
@@ -326,6 +380,13 @@ function getHorariosOcupados(date) {
       if (hora) times.push(hora);
     }
   }
+
+  // Inclui horários bloqueados manualmente
+  try {
+    const bloqueados = getBlockedHours().filter(b => b.date === date).map(b => b.hora);
+    bloqueados.forEach(h => { if (!times.includes(h)) times.push(h); });
+  } catch (_) {}
+
   return times;
 }
 

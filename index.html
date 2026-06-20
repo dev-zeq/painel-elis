@@ -530,14 +530,31 @@
 
   <!-- PANE: INDISPONÍVEIS -->
   <div id="tab-bloqueios" class="tab-pane">
-    <div class="section-title" style="margin-bottom:20px">Dias <span>indisponíveis</span></div>
-    <div class="blocked-body">
+
+    <div class="section-title" style="margin-bottom:16px">Dias <span>indisponíveis</span></div>
+    <div class="blocked-body" style="margin-bottom:32px">
       <div class="blocked-add">
         <input type="date" id="block-date-input" class="block-input" />
-        <button class="act-btn act-cancel" onclick="addBlockedDate()">Bloquear</button>
+        <button class="act-btn act-cancel" onclick="addBlockedDate()">Bloquear dia</button>
       </div>
       <div id="blocked-list" class="blocked-list"></div>
     </div>
+
+    <div class="section-title" style="margin-bottom:16px">Horários <span>bloqueados</span></div>
+    <div class="blocked-body">
+      <div class="blocked-add">
+        <input type="date" id="block-hour-date" class="block-input" />
+        <select id="block-hour-time" class="block-input" style="flex:0 0 110px">
+          <option value="">Horário...</option>
+          <option>09:00</option><option>10:00</option><option>11:00</option>
+          <option>12:00</option><option>13:00</option><option>14:00</option>
+          <option>15:00</option><option>16:00</option><option>17:00</option>
+        </select>
+        <button class="act-btn act-cancel" onclick="addBlockedHour()">Bloquear horário</button>
+      </div>
+      <div id="blocked-hours-list" class="blocked-list" style="flex-direction:column;gap:6px"></div>
+    </div>
+
   </div>
 
 </div>
@@ -956,6 +973,75 @@ async function removeBlockedDate(date) {
   showToast('Dia desbloqueado!', 'success');
 }
 
+// ═══════════════════════════════════════
+// HORÁRIOS BLOQUEADOS
+// ═══════════════════════════════════════
+let blockedHours = []; // [{ date, hora }]
+
+async function loadBlockedHours() {
+  try {
+    const res  = await fetch(SHEETS_URL + '?action=blockedHours&t=' + Date.now());
+    const data = await res.json();
+    blockedHours = data.hours || [];
+    renderBlockedHours();
+  } catch (e) {}
+}
+
+function renderBlockedHours() {
+  const list = document.getElementById('blocked-hours-list');
+  if (!blockedHours.length) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:.75rem;">Nenhum horário bloqueado.</span>';
+    return;
+  }
+
+  // Agrupa por data
+  const byDate = {};
+  blockedHours.forEach(b => {
+    if (!byDate[b.date]) byDate[b.date] = [];
+    byDate[b.date].push(b.hora);
+  });
+
+  list.innerHTML = Object.keys(byDate).sort().map(date => {
+    const label = new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
+    const tags  = byDate[date].sort().map(h =>
+      `<span class="blocked-tag">${h}<button onclick="removeBlockedHour('${date}','${h}')" title="Desbloquear">×</button></span>`
+    ).join('');
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:.72rem;color:var(--muted);min-width:80px">${label}</span>
+      ${tags}
+    </div>`;
+  }).join('');
+}
+
+function addBlockedHour() {
+  const date = document.getElementById('block-hour-date').value;
+  const hora = document.getElementById('block-hour-time').value;
+  if (!date || !hora) { showToast('Selecione a data e o horário', 'error'); return; }
+
+  if (!blockedHours.some(b => b.date === date && b.hora === hora)) {
+    blockedHours.push({ date, hora });
+  }
+  document.getElementById('block-hour-date').value = '';
+  document.getElementById('block-hour-time').value = '';
+  renderBlockedHours();
+
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'blockHour', date, hora }),
+  }).catch(() => {});
+  showToast('Horário bloqueado!', 'success');
+}
+
+function removeBlockedHour(date, hora) {
+  blockedHours = blockedHours.filter(b => !(b.date === date && b.hora === hora));
+  renderBlockedHours();
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'unblockHour', date, hora }),
+  }).catch(() => {});
+  showToast('Horário desbloqueado!', 'success');
+}
+
 function switchTab(name) {
   ['agendamentos', 'servicos', 'bloqueios'].forEach(t => {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
@@ -963,8 +1049,11 @@ function switchTab(name) {
   });
   document.querySelector('.fab').style.display = name === 'agendamentos' ? '' : 'none';
 
-  if (name === 'bloqueios' && !blockedDates.length) loadBlockedDates();
-  if (name === 'servicos'  && !servicosList.length)  loadServicosPainel();
+  if (name === 'bloqueios') {
+    if (!blockedDates.length) loadBlockedDates();
+    if (!blockedHours.length) loadBlockedHours();
+  }
+  if (name === 'servicos' && !servicosList.length) loadServicosPainel();
 }
 
 // ═══════════════════════════════════════
