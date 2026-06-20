@@ -488,7 +488,12 @@ window.addEventListener('load', () => {
     document.getElementById('loader').classList.add('fade');
     setTimeout(() => {
       document.getElementById('loader').style.display = 'none';
-      tryBiometric();
+      // Sessão ativa? Entra direto sem pedir login
+      if (sessionStorage.getItem('elis_auth') === '1') {
+        enterApp();
+      } else {
+        tryBiometric();
+      }
     }, 600);
   }, 1800);
 
@@ -534,7 +539,7 @@ function checkPin() {
 }
 
 // ═══════════════════════════════════════
-// BIOMETRIA (Face ID / Digital)
+// BIOMETRIA (Digital / Face ID)
 // ═══════════════════════════════════════
 async function tryBiometric() {
   if (window.PublicKeyCredential) {
@@ -542,13 +547,15 @@ async function tryBiometric() {
     if (available) {
       document.getElementById('bio-btn').style.display = 'flex';
       showLogin();
+      // Tenta disparar a digital automaticamente ao abrir
+      biometricLogin(true);
       return;
     }
   }
   showLogin();
 }
 
-async function biometricLogin() {
+async function biometricLogin(silencioso = false) {
   try {
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
@@ -558,15 +565,16 @@ async function biometricLogin() {
         challenge,
         timeout: 60000,
         userVerification: 'required',
-        rpId: window.location.hostname || 'localhost',
+        rpId: window.location.hostname,
         allowCredentials: []
       }
     });
 
     if (cred) enterApp();
   } catch (e) {
-    // Biometria falhou ou cancelada — usuário usa PIN
-    document.getElementById('login-error').textContent = 'Use o PIN para entrar';
+    if (!silencioso) {
+      document.getElementById('login-error').textContent = 'Use o PIN para entrar';
+    }
   }
 }
 
@@ -574,12 +582,14 @@ async function biometricLogin() {
 // ENTRAR NO APP
 // ═══════════════════════════════════════
 function enterApp() {
+  sessionStorage.setItem('elis_auth', '1');
   document.getElementById('login-screen').classList.remove('visible');
   document.getElementById('app').classList.add('visible');
   loadAgendamentos();
 }
 
 function logout() {
+  sessionStorage.removeItem('elis_auth');
   document.getElementById('app').classList.remove('visible');
   pinAtual = '';
   updateDots();
