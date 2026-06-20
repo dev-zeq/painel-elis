@@ -166,7 +166,7 @@ function getAgendamentos() {
     lista.push({
       id:      r[0] || (i + 1),
       date:    formatarData(r[1]),
-      time:    r[2]   || '',
+      time:    formatarHora(r[2]),
       name:    r[3]   || '',
       phone:   r[4]   || '',
       email:   r[5]   || '',
