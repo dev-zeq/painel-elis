@@ -426,7 +426,8 @@
 // ═══════════════════════════════════════
 // CONFIGURAÇÃO — SUBSTITUA AQUI
 // ═══════════════════════════════════════
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbysYdOKGxNN_II8nWIAmxnflex5qPcBioGHuIxtk5K-SjqUOVX67Ecw2HpQhwCFp0M/exec';
+const SHEETS_URL      = 'https://script.google.com/macros/s/AKfycbysYdOKGxNN_II8nWIAmxnflex5qPcBioGHuIxtk5K-SjqUOVX67Ecw2HpQhwCFp0M/exec';
+const CONFIRM_WEBHOOK = 'https://flow.ezstudio.com.br/webhook/confirmar-elis';
 const PIN_CORRETO = '0284'; // ⚠️ Troque pelo PIN real da Elis
 
 // ═══════════════════════════════════════
@@ -663,6 +664,7 @@ async function updateStatus(id, novoStatus) {
   renderAll();
   showToast(`${novoStatus}!`, 'success');
 
+  // Salva status na planilha
   try {
     fetch(SHEETS_URL, {
       method: 'POST',
@@ -670,6 +672,22 @@ async function updateStatus(id, novoStatus) {
       body:   new URLSearchParams({ action: 'updateStatus', id: String(id), status: novoStatus }),
     }).catch(() => {});
   } catch (e) { /* offline mode ok */ }
+
+  // Quando Elis confirma, envia WhatsApp para o cliente
+  if (novoStatus === 'Confirmado' && item.phone) {
+    try {
+      fetch(CONFIRM_WEBHOOK, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          name:  item.name,
+          phone: item.phone,
+          date:  item.date,
+          time:  item.time,
+        }),
+      }).catch(() => {});
+    } catch (e) { /* falha silenciosa */ }
+  }
 }
 
 // ═══════════════════════════════════════
