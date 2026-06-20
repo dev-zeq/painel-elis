@@ -340,6 +340,37 @@
     cursor: pointer; font-size: .9rem; padding: 0; line-height: 1;
   }
 
+  /* ── SERVIÇOS ── */
+  .svc-add-form { margin-bottom: 18px; }
+  .svc-form-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .svc-form-row .block-input { min-width: 120px; }
+  .svc-form-row .block-input.svc-cat { flex: 1.5; min-width: 160px; }
+  .svc-form-row .block-input.svc-name { flex: 2; min-width: 160px; }
+  .svc-form-row .block-input.svc-price,
+  .svc-form-row .block-input.svc-dur { width: 100px; flex: 0 0 100px; }
+  .svc-cat-group { margin-bottom: 16px; }
+  .svc-cat-label {
+    font-size: .65rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--gold-dim); padding: 6px 0 8px; border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .svc-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 2px;
+    border: 1px solid var(--border); background: var(--card);
+    margin-bottom: 6px; flex-wrap: wrap;
+  }
+  .svc-row.inactive { opacity: 0.45; }
+  .svc-row-name { flex: 1; font-size: .85rem; color: var(--text); min-width: 120px; }
+  .svc-row-price { font-size: .85rem; font-weight: 600; color: var(--gold); width: 80px; text-align: right; flex-shrink: 0; }
+  .svc-row-dur { font-size: .75rem; color: var(--muted); width: 70px; flex-shrink: 0; }
+  .svc-row-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
+  .svc-edit-input {
+    background: var(--bg); border: 1px solid var(--gold-dim); border-radius: 2px;
+    color: var(--text); font-family: var(--font-body); font-size: .82rem;
+    padding: 3px 7px;
+  }
+
   .fab {
     position: fixed; bottom: 24px; right: 24px;
     width: 50px; height: 50px; border-radius: 2px;
@@ -470,6 +501,34 @@
       <button class="act-btn act-cancel" onclick="addBlockedDate()">Bloquear</button>
     </div>
     <div id="blocked-list" class="blocked-list"></div>
+  </div>
+</div>
+
+<!-- SERVIÇOS E PREÇOS -->
+<div class="blocked-panel" id="servicos-panel">
+  <div class="blocked-header" onclick="toggleServicos()">
+    <span>Serviços e Preços</span>
+    <span id="servicos-toggle-icon">▸</span>
+  </div>
+  <div class="blocked-body" id="servicos-body" style="display:none">
+    <div class="svc-add-form">
+      <div class="svc-form-row">
+        <select class="block-input svc-cat" id="svc-cat-input">
+          <option value="">Categoria...</option>
+          <option>Extensão de Cílios</option>
+          <option>Manutenção de Cílios</option>
+          <option>Design e Epilação</option>
+          <option>Manicure e Unhas</option>
+          <option>Micropigmentação</option>
+          <option>Estética</option>
+        </select>
+        <input class="block-input svc-name" id="svc-name-input" placeholder="Nome do serviço" />
+        <input class="block-input svc-price" id="svc-price-input" type="number" placeholder="Preço R$" />
+        <input class="block-input svc-dur" id="svc-dur-input" placeholder="Duração" />
+        <button class="act-btn act-confirm" onclick="addServicoPainel()">Adicionar</button>
+      </div>
+    </div>
+    <div id="servicos-list"><div style="color:var(--muted);font-size:.8rem;padding:10px 0">Carregando...</div></div>
   </div>
 </div>
 
@@ -894,6 +953,151 @@ function toggleBlocked() {
   body.style.display = open ? 'block' : 'none';
   icon.textContent = open ? '▾' : '▸';
   if (open && !blockedDates.length) loadBlockedDates();
+}
+
+// ═══════════════════════════════════════
+// SERVIÇOS
+// ═══════════════════════════════════════
+let servicosList = [];
+
+function toggleServicos() {
+  const body = document.getElementById('servicos-body');
+  const icon = document.getElementById('servicos-toggle-icon');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  icon.textContent = open ? '▾' : '▸';
+  if (open && !servicosList.length) loadServicosPainel();
+}
+
+async function loadServicosPainel() {
+  try {
+    const res  = await fetch(SHEETS_URL + '?action=servicos&t=' + Date.now());
+    const data = await res.json();
+    servicosList = data.servicos || [];
+    renderServicos();
+  } catch (e) {
+    document.getElementById('servicos-list').innerHTML = '<div style="color:var(--cancel);font-size:.8rem">Erro ao carregar serviços.</div>';
+  }
+}
+
+function renderServicos() {
+  const container = document.getElementById('servicos-list');
+  if (!servicosList.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:.8rem;padding:10px 0">Nenhum serviço cadastrado.</div>';
+    return;
+  }
+
+  const cats = {};
+  const catOrder = [];
+  servicosList.forEach(s => {
+    if (!cats[s.categoria]) { cats[s.categoria] = []; catOrder.push(s.categoria); }
+    cats[s.categoria].push(s);
+  });
+
+  container.innerHTML = '';
+  catOrder.forEach(cat => {
+    const group = document.createElement('div');
+    group.className = 'svc-cat-group';
+    group.innerHTML = `<div class="svc-cat-label">${cat}</div>`;
+
+    cats[cat].forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'svc-row' + (s.ativo ? '' : ' inactive');
+      row.id = 'svc-row-' + s.id;
+      row.innerHTML = `
+        <span class="svc-row-name">${s.servico}</span>
+        <span class="svc-row-price">R$ ${s.preco}</span>
+        <span class="svc-row-dur">${s.duracao || ''}</span>
+        <div class="svc-row-actions">
+          <button class="act-btn act-confirm" style="padding:3px 9px;font-size:.72rem" onclick="startEditServico('${s.id}')">Editar</button>
+          <button class="act-btn" style="padding:3px 9px;font-size:.72rem;background:rgba(201,169,110,.08);border-color:var(--gold-dim);color:var(--gold-dim)" onclick="toggleAtivoServico('${s.id}', ${s.ativo})">${s.ativo ? 'Ocultar' : 'Ativar'}</button>
+          <button class="act-btn act-cancel" style="padding:3px 9px;font-size:.72rem" onclick="deleteServicoPainel('${s.id}')">✕</button>
+        </div>
+      `;
+      group.appendChild(row);
+    });
+
+    container.appendChild(group);
+  });
+}
+
+function startEditServico(id) {
+  const s = servicosList.find(x => x.id === id);
+  if (!s) return;
+  const row = document.getElementById('svc-row-' + id);
+  row.innerHTML = `
+    <input class="svc-edit-input" id="edit-nome-${id}" value="${s.servico}" style="flex:1;min-width:120px" />
+    <input class="svc-edit-input" id="edit-preco-${id}" type="number" value="${s.preco}" style="width:80px" />
+    <input class="svc-edit-input" id="edit-dur-${id}" value="${s.duracao || ''}" style="width:80px" placeholder="Duração" />
+    <div class="svc-row-actions">
+      <button class="act-btn act-confirm" style="padding:3px 9px;font-size:.72rem" onclick="saveServicoPainel('${id}')">Salvar</button>
+      <button class="act-btn" style="padding:3px 9px;font-size:.72rem" onclick="renderServicos()">Cancelar</button>
+    </div>
+  `;
+}
+
+async function saveServicoPainel(id) {
+  const nome  = document.getElementById('edit-nome-' + id)?.value.trim();
+  const preco = document.getElementById('edit-preco-' + id)?.value;
+  const dur   = document.getElementById('edit-dur-' + id)?.value.trim();
+  if (!nome || !preco) { showToast('Preencha nome e preço', 'error'); return; }
+
+  const s = servicosList.find(x => x.id === id);
+  if (s) { s.servico = nome; s.preco = Number(preco); s.duracao = dur; }
+  renderServicos();
+
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'updateServico', id, servico: nome, preco, duracao: dur }),
+  }).catch(() => {});
+  showToast('Serviço atualizado!', 'success');
+}
+
+async function addServicoPainel() {
+  const cat   = document.getElementById('svc-cat-input').value.trim();
+  const nome  = document.getElementById('svc-name-input').value.trim();
+  const preco = document.getElementById('svc-price-input').value;
+  const dur   = document.getElementById('svc-dur-input').value.trim();
+
+  if (!cat || !nome || !preco) { showToast('Preencha categoria, nome e preço', 'error'); return; }
+
+  const novoId = String(Date.now());
+  servicosList.push({ id: novoId, categoria: cat, servico: nome, preco: Number(preco), duracao: dur, ativo: true, obs: '' });
+  renderServicos();
+
+  document.getElementById('svc-cat-input').value  = '';
+  document.getElementById('svc-name-input').value = '';
+  document.getElementById('svc-price-input').value = '';
+  document.getElementById('svc-dur-input').value  = '';
+
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'addServico', categoria: cat, servico: nome, preco, duracao: dur }),
+  }).catch(() => {});
+  showToast('Serviço adicionado!', 'success');
+}
+
+function toggleAtivoServico(id, ativo) {
+  const s = servicosList.find(x => x.id === id);
+  if (!s) return;
+  s.ativo = !ativo;
+  renderServicos();
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'updateServico', id, ativo: String(!ativo) }),
+  }).catch(() => {});
+  showToast(ativo ? 'Serviço ocultado' : 'Serviço ativado', 'success');
+}
+
+function deleteServicoPainel(id) {
+  if (!confirm('Excluir este serviço?')) return;
+  servicosList = servicosList.filter(x => x.id !== id);
+  renderServicos();
+  fetch(SHEETS_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: new URLSearchParams({ action: 'deleteServico', id }),
+  }).catch(() => {});
+  showToast('Serviço removido', 'success');
 }
 
 // ═══════════════════════════════════════

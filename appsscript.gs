@@ -9,7 +9,8 @@ const CONFIG = {
   sheetsNames: {
     agendamentos: 'Agendamentos',
     dashboard:    'Dashboard',
-    config:       'Configuração'
+    config:       'Configuração',
+    servicos:     'Serviços'
   },
   colors: {
     headerBg:    '#E91E63',
@@ -34,6 +35,7 @@ function doGet(e) {
     if (!date) return jsonResponse({ times: [] });
     return jsonResponse({ times: getHorariosOcupados(date) });
   }
+  if (action === 'servicos') return jsonResponse({ servicos: getServicos() });
 
   return jsonResponse({ success: false, error: 'Ação desconhecida: ' + action });
 }
@@ -47,10 +49,13 @@ function doPost(e) {
     let dados = parseRequest(e);
     const action = dados.action || 'add';
 
-    if (action === 'add')         return addAgendamento(dados);
-    if (action === 'updateStatus') return atualizarStatus(dados);
-    if (action === 'blockDate')   return blockDate(dados);
-    if (action === 'unblockDate') return unblockDate(dados);
+    if (action === 'add')           return addAgendamento(dados);
+    if (action === 'updateStatus')  return atualizarStatus(dados);
+    if (action === 'blockDate')     return blockDate(dados);
+    if (action === 'unblockDate')   return unblockDate(dados);
+    if (action === 'addServico')    return addServico(dados);
+    if (action === 'updateServico') return updateServico(dados);
+    if (action === 'deleteServico') return deleteServico(dados);
 
     return jsonResponse({ success: false, error: 'Ação desconhecida: ' + action });
 
@@ -219,6 +224,83 @@ function unblockDate(dados) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// 💅 Serviços — CRUD
+// ═══════════════════════════════════════════════════════════════════
+
+function getServicos() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const aba   = sheet.getSheetByName(CONFIG.sheetsNames.servicos);
+  if (!aba || aba.getLastRow() <= 1) return [];
+
+  const rows = aba.getDataRange().getValues();
+  const lista = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    lista.push({
+      id:        String(r[0]),
+      categoria: r[1] || '',
+      servico:   r[2] || '',
+      preco:     Number(r[3]) || 0,
+      duracao:   r[4] || '',
+      ativo:     r[5] !== false && r[5] !== 'false' && r[5] !== 0,
+      obs:       r[6] || ''
+    });
+  }
+  return lista;
+}
+
+function addServico(dados) {
+  if (!dados.categoria || !dados.servico || !dados.preco) {
+    return jsonResponse({ success: false, error: 'categoria, servico e preco são obrigatórios' });
+  }
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  let aba = sheet.getSheetByName(CONFIG.sheetsNames.servicos);
+  if (!aba) { setupServicos(); aba = sheet.getSheetByName(CONFIG.sheetsNames.servicos); }
+
+  const novoId = Date.now();
+  aba.appendRow([novoId, dados.categoria, dados.servico, Number(dados.preco), dados.duracao || '', true, dados.obs || '']);
+  return jsonResponse({ success: true, id: novoId });
+}
+
+function updateServico(dados) {
+  if (!dados.id) return jsonResponse({ success: false, error: 'id é obrigatório' });
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const aba   = sheet.getSheetByName(CONFIG.sheetsNames.servicos);
+  if (!aba)   return jsonResponse({ success: false, error: 'Aba Serviços não encontrada' });
+
+  const rows = aba.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(dados.id)) {
+      if (dados.categoria !== undefined) aba.getRange(i + 1, 2).setValue(dados.categoria);
+      if (dados.servico   !== undefined) aba.getRange(i + 1, 3).setValue(dados.servico);
+      if (dados.preco     !== undefined) aba.getRange(i + 1, 4).setValue(Number(dados.preco));
+      if (dados.duracao   !== undefined) aba.getRange(i + 1, 5).setValue(dados.duracao);
+      if (dados.ativo     !== undefined) aba.getRange(i + 1, 6).setValue(dados.ativo === 'true' || dados.ativo === true);
+      if (dados.obs       !== undefined) aba.getRange(i + 1, 7).setValue(dados.obs);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Serviço não encontrado: ' + dados.id });
+}
+
+function deleteServico(dados) {
+  if (!dados.id) return jsonResponse({ success: false, error: 'id é obrigatório' });
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const aba   = sheet.getSheetByName(CONFIG.sheetsNames.servicos);
+  if (!aba)   return jsonResponse({ success: false, error: 'Aba Serviços não encontrada' });
+
+  const rows = aba.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(dados.id)) {
+      aba.deleteRow(i + 1);
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ success: false, error: 'Serviço não encontrado: ' + dados.id });
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // 🔧 Helpers internos
 // ═══════════════════════════════════════════════════════════════════
 
@@ -306,13 +388,60 @@ function setupPlanilha() {
   formatarAbaAgendamentos(sheet);
   criarDashboard(sheet);
   criarConfiguracao(sheet);
+  setupServicos();
   Logger.log('✅ Planilha configurada!');
 }
 
 function criarAbas(sheet) {
-  [CONFIG.sheetsNames.agendamentos, CONFIG.sheetsNames.dashboard, CONFIG.sheetsNames.config].forEach(nome => {
+  [CONFIG.sheetsNames.agendamentos, CONFIG.sheetsNames.dashboard, CONFIG.sheetsNames.config, CONFIG.sheetsNames.servicos].forEach(nome => {
     try { sheet.insertSheet(nome); } catch (_) {}
   });
+}
+
+function setupServicos() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  let aba = sheet.getSheetByName(CONFIG.sheetsNames.servicos);
+  if (!aba) aba = sheet.insertSheet(CONFIG.sheetsNames.servicos);
+
+  if (aba.getLastRow() > 0) return; // já tem dados
+
+  const headers = ['ID', 'Categoria', 'Serviço', 'Preço', 'Duração', 'Ativo', 'Observação'];
+  aba.appendRow(headers);
+  const hr = aba.getRange(1, 1, 1, headers.length);
+  hr.setBackground('#C9A96E').setFontColor('#FFFFFF').setFontWeight('bold');
+  aba.setFrozenRows(1);
+
+  const servicos = [
+    [Date.now()+1,  'Extensão de Cílios', 'Volume Brasileiro',                   150, '~2h',    true, ''],
+    [Date.now()+2,  'Extensão de Cílios', 'Volume Egípcio 3D',                   150, '~2h',    true, ''],
+    [Date.now()+3,  'Extensão de Cílios', 'Volume Egípcio 5D',                   170, '~2h',    true, ''],
+    [Date.now()+4,  'Extensão de Cílios', 'Volume Fox',                           180, '~2h',    true, ''],
+    [Date.now()+5,  'Extensão de Cílios', 'Copping',                              220, '~2h30',  true, ''],
+    [Date.now()+6,  'Manutenção de Cílios', 'Manutenção até 20 dias',             85,  '~1h',    true, ''],
+    [Date.now()+7,  'Manutenção de Cílios', 'Manutenção até 30 dias',             100, '~1h',    true, ''],
+    [Date.now()+8,  'Design e Epilação', 'Design de Sobrancelhas',                30,  '~20min', true, ''],
+    [Date.now()+9,  'Design e Epilação', 'Epilação Buço',                         20,  '~5min',  true, ''],
+    [Date.now()+10, 'Design e Epilação', 'Epilação Queixo',                       15,  '~10min', true, ''],
+    [Date.now()+11, 'Design e Epilação', 'Epilação Nariz',                        15,  '~10min', true, ''],
+    [Date.now()+12, 'Design e Epilação', 'Combo Epilação',                        60,  '~30min', true, ''],
+    [Date.now()+13, 'Design e Epilação', 'Epilação Total Rosto',                  80,  '~1h',    true, ''],
+    [Date.now()+14, 'Manicure e Unhas', 'Manicure Simples',                       30,  '~1h',    true, ''],
+    [Date.now()+15, 'Manicure e Unhas', 'Esmaltação em Gel Mãos',                 80,  '~2h',    true, ''],
+    [Date.now()+16, 'Manicure e Unhas', 'Alongamento Mãos',                       150, '~3h',    true, ''],
+    [Date.now()+17, 'Manicure e Unhas', 'Manutenção Alongamento até 20 dias',     100, '~3h',    true, ''],
+    [Date.now()+18, 'Manicure e Unhas', 'Esmaltação em Gel Pés',                  80,  '~2h',    true, ''],
+    [Date.now()+19, 'Micropigmentação', 'Sobrancelhas',                           250, '~2h',    true, ''],
+    [Date.now()+20, 'Micropigmentação', 'Retoque após 1 mês',                     100, '~2h',    true, ''],
+    [Date.now()+21, 'Micropigmentação', 'Correção',                               450, '~2h',    true, ''],
+    [Date.now()+22, 'Micropigmentação', 'Retoques 2x a cada 30 dias',             100, '~3h',    true, 'Valor cada sessão'],
+    [Date.now()+23, 'Estética',         'Tratamento de Estrias',                  250, '~1h',    true, 'Mediante avaliação presencial — valor por sessão'],
+  ];
+
+  const widths = [80, 180, 240, 80, 80, 60, 260];
+  widths.forEach((w, i) => aba.setColumnWidth(i + 1, w));
+
+  servicos.forEach(row => aba.appendRow(row));
+  Logger.log('✅ Aba Serviços criada com ' + servicos.length + ' serviços');
 }
 
 function formatarAbaAgendamentos(sheet) {
