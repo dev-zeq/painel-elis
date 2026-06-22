@@ -19,7 +19,7 @@ const CONFIG = {
     dashboardBg: '#FFF5F8',
     goldenAccent:'#D4AF37'
   },
-  headers: ['ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone', 'Email', 'Serviço', 'Status', 'Anotações', 'Data Agendamento']
+  headers: ['ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone', 'Email', 'Serviço', 'Status', 'Anotações', 'Data Agendamento', 'LembreteEnviado']
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -57,8 +57,9 @@ function doPost(e) {
     if (action === 'unblockDate')   return unblockDate(dados);
     if (action === 'addServico')    return addServico(dados);
     if (action === 'updateServico') return updateServico(dados);
-    if (action === 'deleteServico') return deleteServico(dados);
-    if (action === 'blockHour')     return blockHour(dados);
+    if (action === 'deleteServico')      return deleteServico(dados);
+    if (action === 'deleteAgendamento')  return deleteAgendamento(dados);
+    if (action === 'blockHour')          return blockHour(dados);
     if (action === 'unblockHour')   return unblockHour(dados);
 
     return jsonResponse({ success: false, error: 'Ação desconhecida: ' + action });
@@ -124,6 +125,29 @@ function addAgendamento(dados) {
   try { enviarConfirmacaoEmail(dados); } catch (_) {}
 
   return jsonResponse({ success: true, id: novoId, message: 'Agendamento salvo!' });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 🗑️ Deletar agendamento
+// ═══════════════════════════════════════════════════════════════════
+
+function deleteAgendamento(dados) {
+  if (!dados.id) {
+    return jsonResponse({ success: false, error: 'id é obrigatório' });
+  }
+
+  const aba  = getAbaAgendamentos();
+  const rows = aba.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(dados.id)) {
+      aba.deleteRow(i + 1);
+      Logger.log('🗑️ Agendamento deletado: ID ' + dados.id);
+      return jsonResponse({ success: true });
+    }
+  }
+
+  return jsonResponse({ success: false, error: 'ID não encontrado: ' + dados.id });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -623,34 +647,39 @@ function enviarLembretes24hAntes() {
   const dataAmanha = Utilities.formatDate(amanha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
   const LEMBRETE_WEBHOOK = 'https://flow.ezstudio.com.br/webhook/lembrete-elis';
+  const COL_LEMBRETE = 11; // coluna K — LembreteEnviado
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r[0]) continue;
 
-    const rowDate   = formatarData(r[1]);
-    const rowStatus = String(r[7] || '');
+    const rowDate        = formatarData(r[1]);
+    const rowStatus      = String(r[7] || '');
+    const lembreteJaEnviado = String(r[COL_LEMBRETE - 1] || '');
 
-    if (rowDate === dataAmanha && (rowStatus === 'Confirmado' || rowStatus === 'Agendado')) {
-      const payload = {
-        name:    String(r[3] || ''),
-        phone:   String(r[4] || ''),
-        date:    rowDate,
-        time:    formatarHora(r[2]),
-        servico: String(r[6] || '')
-      };
+    if (rowDate !== dataAmanha) continue;
+    if (rowStatus !== 'Confirmado' && rowStatus !== 'Agendado') continue;
+    if (lembreteJaEnviado === 'true') continue;
 
-      try {
-        UrlFetchApp.fetch(LEMBRETE_WEBHOOK, {
-          method:      'POST',
-          contentType: 'application/json',
-          payload:     JSON.stringify(payload),
-          muteHttpExceptions: true
-        });
-        Logger.log('✅ Lembrete enviado: ' + payload.name + ' — ' + rowDate + ' ' + payload.time);
-      } catch (err) {
-        Logger.log('❌ Erro lembrete ' + payload.name + ': ' + err);
-      }
+    const payload = {
+      name:    String(r[3] || ''),
+      phone:   String(r[4] || ''),
+      date:    rowDate,
+      time:    formatarHora(r[2]),
+      servico: String(r[6] || '')
+    };
+
+    try {
+      UrlFetchApp.fetch(LEMBRETE_WEBHOOK, {
+        method:      'POST',
+        contentType: 'application/json',
+        payload:     JSON.stringify(payload),
+        muteHttpExceptions: true
+      });
+      aba.getRange(i + 1, COL_LEMBRETE).setValue('true');
+      Logger.log('✅ Lembrete enviado: ' + payload.name + ' — ' + rowDate + ' ' + payload.time);
+    } catch (err) {
+      Logger.log('❌ Erro lembrete ' + payload.name + ': ' + err);
     }
   }
 }

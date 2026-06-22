@@ -956,12 +956,18 @@ function renderTable() {
       ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })
       : '—';
 
+    const deleteBtn = `<button class="act-btn act-cancel" style="flex:0;padding:6px 10px" title="Excluir agendamento" onclick="deleteAgendamentoPainel('${a.id}','${a.name}')">🗑️</button>`;
+
     const actions = a.status === 'Pendente'
       ? `<button class="act-btn act-confirm" onclick="updateStatus(${a.id},'Confirmado')">Confirmar</button>
-         <button class="act-btn act-cancel" onclick="updateStatus(${a.id},'Cancelado')">Cancelar</button>`
+         <button class="act-btn act-cancel" onclick="updateStatus(${a.id},'Cancelado')">Cancelar</button>
+         ${deleteBtn}`
       : a.status === 'Confirmado'
       ? `<button class="act-btn act-done" onclick="updateStatus(${a.id},'Realizado')">Realizado</button>
-         <button class="act-btn act-cancel" onclick="updateStatus(${a.id},'Cancelado')">Cancelar</button>`
+         <button class="act-btn act-cancel" onclick="updateStatus(${a.id},'Cancelado')">Cancelar</button>
+         ${deleteBtn}`
+      : a.status === 'Cancelado' || a.status === 'Realizado'
+      ? deleteBtn
       : '—';
 
     return `<tr>
@@ -1125,6 +1131,22 @@ function renderDonutChart(total, conf, real, canc) {
 // ═══════════════════════════════════════
 // AÇÕES NA TABELA
 // ═══════════════════════════════════════
+async function deleteAgendamentoPainel(id, nome) {
+  if (!confirm(`Excluir o agendamento de ${nome}? Essa ação não pode ser desfeita.`)) return;
+
+  agendamentos = agendamentos.filter(a => String(a.id) !== String(id));
+  renderAll();
+  showToast('Agendamento excluído', 'success');
+
+  try {
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode:   'no-cors',
+      body:   new URLSearchParams({ action: 'deleteAgendamento', id: String(id) }),
+    }).catch(() => {});
+  } catch (e) { /* offline mode ok */ }
+}
+
 async function updateStatus(id, novoStatus) {
   const item = agendamentos.find(a => a.id === id);
   if (!item) return;
