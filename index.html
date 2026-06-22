@@ -1032,7 +1032,7 @@ function renderTable() {
       ? deleteBtn
       : '—';
 
-    return `<tr class="${rowClass}" onclick="openDetail(${a.id})">
+    return `<tr class="${rowClass}" data-id="${a.id}">
       <td data-label="Data">${dateFormatted}</td>
       <td data-label="Horário">${horaDisplay}</td>
       <td data-label="Cliente">${a.name}</td>
@@ -1043,7 +1043,7 @@ function renderTable() {
 }
 
 function openDetail(id) {
-  const a = agendamentos.find(x => String(x.id) === String(id));
+  const a = agendamentos.find(x => x.id == id);
   if (!a) return;
 
   const dateStr = a.date
@@ -1087,6 +1087,13 @@ function closeDetail(e) {
   if (e && e.target !== document.getElementById('detail-overlay')) return;
   document.getElementById('detail-overlay').classList.remove('open');
 }
+
+document.addEventListener('click', function(e) {
+  const tr = e.target.closest('tbody tr[data-id]');
+  if (!tr) return;
+  if (e.target.closest('.td-actions')) return;
+  openDetail(tr.dataset.id);
+});
 
 // ═══════════════════════════════════════
 // FILTROS
