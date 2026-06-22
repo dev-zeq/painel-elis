@@ -276,7 +276,7 @@ function getBlockedHours() {
   if (!aba || aba.getLastRow() === 0) return [];
 
   return aba.getDataRange().getValues()
-    .map(r => ({ date: formatarData(r[0]), hora: String(r[1] || '') }))
+    .map(r => ({ date: formatarData(r[0]), hora: formatarHora(r[1]) }))
     .filter(r => r.date && r.hora);
 }
 
@@ -307,7 +307,7 @@ function unblockHour(dados) {
 
   const rows = aba.getDataRange().getValues();
   for (let i = 0; i < rows.length; i++) {
-    if (formatarData(rows[i][0]) === dados.date && String(rows[i][1]) === dados.hora) {
+    if (formatarData(rows[i][0]) === dados.date && formatarHora(rows[i][1]) === dados.hora) {
       aba.deleteRow(i + 1);
       Logger.log('✅ Horário desbloqueado: ' + dados.date + ' ' + dados.hora);
       return jsonResponse({ success: true });
