@@ -631,7 +631,7 @@ function enviarLembretes24hAntes() {
     const rowDate   = formatarData(r[1]);
     const rowStatus = String(r[7] || '');
 
-    if (rowDate === dataAmanha && rowStatus === 'Confirmado') {
+    if (rowDate === dataAmanha && (rowStatus === 'Confirmado' || rowStatus === 'Agendado')) {
       const payload = {
         name:    String(r[3] || ''),
         phone:   String(r[4] || ''),
