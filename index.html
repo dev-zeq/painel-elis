@@ -1043,8 +1043,8 @@ function renderTable() {
 }
 
 function openDetail(id) {
-  const a = agendamentos.find(x => x.id == id);
-  if (!a) return;
+  const a = agendamentos.find(x => x.id == id || String(x.id) === String(id));
+  if (!a) { showToast('Erro: agendamento não encontrado', ''); return; }
 
   const dateStr = a.date
     ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long' })
@@ -1080,18 +1080,22 @@ function openDetail(id) {
       </div>
     </div>`).join('');
 
-  document.getElementById('detail-overlay').classList.add('open');
+  const ov = document.getElementById('detail-overlay');
+  ov.classList.add('open');
+  ov.style.display = 'flex';
 }
 
 function closeDetail(e) {
   if (e && e.target !== document.getElementById('detail-overlay')) return;
-  document.getElementById('detail-overlay').classList.remove('open');
+  const ov = document.getElementById('detail-overlay');
+  ov.classList.remove('open');
+  ov.style.display = '';
 }
 
 document.addEventListener('click', function(e) {
-  const tr = e.target.closest('tbody tr[data-id]');
-  if (!tr) return;
   if (e.target.closest('.td-actions')) return;
+  const tr = e.target.closest('tr[data-id]');
+  if (!tr) return;
   openDetail(tr.dataset.id);
 });
 
