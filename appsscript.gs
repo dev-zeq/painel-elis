@@ -19,7 +19,7 @@ const CONFIG = {
     dashboardBg: '#FFF5F8',
     goldenAccent:'#D4AF37'
   },
-  headers: ['ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone', 'Email', 'Serviço', 'Status', 'Anotações', 'Data Agendamento', 'LembreteEnviado']
+  headers: ['ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone', 'Email', 'Serviço', 'Status', 'Anotações', 'Data Agendamento', 'LembreteEnviado', 'DuracaoMin']
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -92,6 +92,18 @@ function parseRequest(e) {
 // ➕ Adicionar novo agendamento
 // ═══════════════════════════════════════════════════════════════════
 
+function parseDuracaoMin(str) {
+  if (!str) return 30;
+  str = String(str).toLowerCase().trim();
+  let mins = 0;
+  const h = str.match(/(\d+)\s*h/);
+  const m = str.match(/(\d+)\s*min/);
+  if (h) mins += parseInt(h[1]) * 60;
+  if (m) mins += parseInt(m[1]);
+  if (!mins) { const n = parseInt(str); mins = isNaN(n) ? 30 : n; }
+  return Math.max(30, mins);
+}
+
 function addAgendamento(dados) {
   if (!dados.name || !dados.phone || !dados.date || !dados.time) {
     return jsonResponse({ success: false, error: 'Campos obrigatórios: name, phone, date, time' });
@@ -99,6 +111,7 @@ function addAgendamento(dados) {
 
   const aba = getAbaAgendamentos();
   const novoId = gerarId();
+  const duracaoMin = parseDuracaoMin(dados.duracao);
 
   const novaLinha = [
     novoId,                                      // ID
@@ -110,7 +123,9 @@ function addAgendamento(dados) {
     dados.servico || 'Estética',                 // Serviço
     dados.status  || 'Pendente',                 // Status
     dados.notes   || dados.anotacoes || '',       // Anotações
-    new Date().toLocaleDateString('pt-BR')        // Data do agendamento
+    new Date().toLocaleDateString('pt-BR'),       // Data do agendamento
+    '',                                          // LembreteEnviado
+    duracaoMin                                   // DuracaoMin
   ];
 
   aba.appendRow(novaLinha);
@@ -401,14 +416,21 @@ function getHorariosOcupados(date) {
     const rowStatus = String(r[7] || 'Pendente');
     if (rowDate === date && rowStatus !== 'Cancelado') {
       const hora = formatarHora(r[2]);
-      if (hora) times.push(hora);
+      if (hora) {
+        const duracaoMin = Number(r[11]) || 30;
+        times.push({ time: hora, duracao: duracaoMin });
+      }
     }
   }
 
-  // Inclui horários bloqueados manualmente
+  // Inclui horários bloqueados manualmente (duração mínima 30min)
   try {
-    const bloqueados = getBlockedHours().filter(b => b.date === date).map(b => b.hora);
-    bloqueados.forEach(h => { if (!times.includes(h)) times.push(h); });
+    const bloqueados = getBlockedHours().filter(b => b.date === date);
+    bloqueados.forEach(b => {
+      if (!times.some(t => t.time === b.hora)) {
+        times.push({ time: b.hora, duracao: 30 });
+      }
+    });
   } catch (_) {}
 
   return times;
