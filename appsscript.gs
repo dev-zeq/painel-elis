@@ -19,7 +19,7 @@ const CONFIG = {
     dashboardBg: '#FFF5F8',
     goldenAccent:'#D4AF37'
   },
-  headers: ['ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone', 'Email', 'Serviço', 'Status', 'Anotações', 'Data Agendamento', 'LembreteEnviado', 'DuracaoMin']
+  headers: ['ID', 'Data', 'Hora', 'Nome Cliente', 'Telefone', 'Email', 'Serviço', 'Status', 'Anotações', 'Data Agendamento', 'LembreteEnviado', 'DuracaoMin', 'Preco']
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -125,7 +125,8 @@ function addAgendamento(dados) {
     dados.notes   || dados.anotacoes || '',       // Anotações
     new Date().toLocaleDateString('pt-BR'),       // Data do agendamento
     '',                                          // LembreteEnviado
-    duracaoMin                                   // DuracaoMin
+    duracaoMin,                                  // DuracaoMin
+    Number(dados.preco) || 0                     // Preco
   ];
 
   aba.appendRow(novaLinha);
@@ -212,6 +213,8 @@ function getAgendamentos() {
       servico: r[6]   || '',
       status:  r[7]   || 'Pendente',
       notes:   r[8]   || '',
+      duracao: r[11]  || '',
+      preco:   Number(r[12]) || 0,
     });
   }
 
