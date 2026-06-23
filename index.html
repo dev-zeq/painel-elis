@@ -1032,11 +1032,12 @@ function renderTable() {
       ? deleteBtn
       : '—';
 
+    const oc = `openDetail('${a.id}')`;
     return `<tr class="${rowClass}" data-id="${a.id}">
-      <td data-label="Data">${dateFormatted}</td>
-      <td data-label="Horário">${horaDisplay}</td>
-      <td data-label="Cliente">${a.name}</td>
-      <td data-label="Status"><span class="status-badge ${badgeClass}">${a.status}</span></td>
+      <td data-label="Data" onclick="${oc}" style="cursor:pointer">${dateFormatted}</td>
+      <td data-label="Horário" onclick="${oc}" style="cursor:pointer">${horaDisplay}</td>
+      <td data-label="Cliente" onclick="${oc}" style="cursor:pointer">${a.name}</td>
+      <td data-label="Status" onclick="${oc}" style="cursor:pointer"><span class="status-badge ${badgeClass}">${a.status}</span></td>
       <td data-label="Ações"><div class="td-actions">${actions}</div></td>
     </tr>`;
   }).join('');
