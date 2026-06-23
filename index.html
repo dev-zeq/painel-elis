@@ -1032,13 +1032,13 @@ function renderTable() {
       ? deleteBtn
       : '—';
 
-    const oc = `openDetail('${a.id}')`;
+    const verBtn = `<button class="act-btn" style="flex:0;padding:6px 12px;border-color:var(--gold-dim);color:var(--gold)" onclick="openDetail('${a.id}')">Ver</button>`;
     return `<tr class="${rowClass}" data-id="${a.id}">
-      <td data-label="Data" onclick="${oc}" style="cursor:pointer">${dateFormatted}</td>
-      <td data-label="Horário" onclick="${oc}" style="cursor:pointer">${horaDisplay}</td>
-      <td data-label="Cliente" onclick="${oc}" style="cursor:pointer">${a.name}</td>
-      <td data-label="Status" onclick="${oc}" style="cursor:pointer"><span class="status-badge ${badgeClass}">${a.status}</span></td>
-      <td data-label="Ações"><div class="td-actions">${actions}</div></td>
+      <td data-label="Data">${dateFormatted}</td>
+      <td data-label="Horário">${horaDisplay}</td>
+      <td data-label="Cliente">${a.name}</td>
+      <td data-label="Status"><span class="status-badge ${badgeClass}">${a.status}</span></td>
+      <td data-label="Ações"><div class="td-actions">${verBtn}${actions}</div></td>
     </tr>`;
   }).join('');
 }
