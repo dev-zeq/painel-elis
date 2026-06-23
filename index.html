@@ -745,6 +745,11 @@
 <div id="toast"></div>
 
 <script>
+window.onerror = function(msg, src, line) {
+  document.body.insertAdjacentHTML('beforeend',
+    `<div style="position:fixed;bottom:80px;left:16px;right:16px;background:#c00;color:#fff;padding:10px;z-index:9999;border-radius:4px;font-size:12px">JS ERR: ${msg} (linha ${line})</div>`);
+};
+
 // ═══════════════════════════════════════
 // CONFIGURAÇÃO — SUBSTITUA AQUI
 // ═══════════════════════════════════════
@@ -1044,6 +1049,9 @@ function renderTable() {
 }
 
 function openDetail(id) {
+  document.body.insertAdjacentHTML('beforeend',
+    `<div style="position:fixed;bottom:80px;left:16px;right:16px;background:#1a6;color:#fff;padding:10px;z-index:9999;border-radius:4px;font-size:12px" id="dbg-toast">openDetail chamado id=${id} | ag=${agendamentos.length}</div>`);
+  setTimeout(()=>{ const d=document.getElementById('dbg-toast'); if(d) d.remove(); }, 4000);
   const a = agendamentos.find(x => x.id == id || String(x.id) === String(id));
   if (!a) { showToast('Erro: agendamento não encontrado', ''); return; }
 
