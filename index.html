@@ -1032,7 +1032,7 @@ function renderTable() {
       ? deleteBtn
       : '—';
 
-    const verBtn = `<button class="act-btn" style="flex:0;padding:6px 12px;border-color:var(--gold-dim);color:var(--gold)" onclick="openDetail('${a.id}')">Ver</button>`;
+    const verBtn = `<button class="act-btn" style="flex:0;padding:6px 12px;background:#fff;border-color:#fff;color:#111;font-weight:500" onclick="openDetail('${a.id}')">Ver</button>`;
     return `<tr class="${rowClass}" data-id="${a.id}">
       <td data-label="Data">${dateFormatted}</td>
       <td data-label="Horário">${horaDisplay}</td>
@@ -1069,7 +1069,7 @@ function openDetail(id) {
     const durFmt = h && m ? `${h}h ${m}min` : h ? `${h}h` : `${a.duracao}min`;
     rows.push({ icon: '⏱', label: 'Duração', val: durFmt });
   }
-  if (a.preco) rows.push({ icon: '💰', label: 'Valor', val: `R$ ${Number(a.preco).toFixed(2).replace('.',',')}` });
+  rows.push({ icon: '💰', label: 'Valor', val: a.preco ? `R$ ${Number(a.preco).toFixed(2).replace('.',',')}` : '—' });
   if (a.notes) rows.push({ icon: '📝', label: 'Anotações', val: a.notes });
 
   document.getElementById('detail-rows').innerHTML = rows.map(r => `
