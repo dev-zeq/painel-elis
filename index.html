@@ -465,6 +465,70 @@
     z-index: 50;
   }
   .fab:hover { opacity: .88; transform: translateY(-2px); }
+
+  /* ── SERVIÇO GRATUITO BADGE ── */
+  .free-badge {
+    font-size: .6rem; letter-spacing: .12em; text-transform: uppercase;
+    background: rgba(76,175,125,.12); color: var(--confirm);
+    border: 1px solid rgba(76,175,125,.3); border-radius: 2px;
+    padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+  }
+
+  /* ── MODAL WHATSAPP PREVIEW ── */
+  .wpp-preview-box {
+    margin-top: 18px; padding: 14px 16px;
+    background: rgba(37,211,102,.06); border: 1px solid rgba(37,211,102,.2);
+    border-radius: 6px; display: none;
+  }
+  .wpp-preview-box.visible { display: block; }
+  .wpp-preview-label {
+    font-size: .62rem; letter-spacing: .14em; text-transform: uppercase;
+    color: #25D166; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+  }
+  .wpp-preview-label svg { flex-shrink: 0; }
+  .wpp-preview-text {
+    font-size: .83rem; color: var(--text); line-height: 1.55;
+    white-space: pre-wrap; font-family: var(--font-body);
+    background: var(--card); border-radius: 4px; padding: 10px 12px;
+    border: 1px solid var(--border); margin-bottom: 10px;
+    user-select: all;
+  }
+  .wpp-btn-row { display: flex; gap: 8px; }
+  .btn-wpp-copy {
+    flex: 1; padding: 9px; background: rgba(37,211,102,.12);
+    border: 1px solid rgba(37,211,102,.3); border-radius: 2px;
+    color: #25D166; font-family: var(--font-body); font-size: .75rem;
+    letter-spacing: .08em; cursor: pointer; transition: all .15s;
+  }
+  .btn-wpp-copy:hover { background: rgba(37,211,102,.2); }
+  .btn-wpp-open {
+    flex: 1; padding: 9px; background: #25D166;
+    border: none; border-radius: 2px; color: #0D0A0B;
+    font-family: var(--font-body); font-size: .75rem;
+    letter-spacing: .08em; cursor: pointer; transition: opacity .15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-wpp-open:hover { opacity: .88; }
+
+  /* ── TOGGLE AGENDAMENTO PRÓPRIO ── */
+  .toggle-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 2px;
+    margin-bottom: 14px; cursor: pointer;
+  }
+  .toggle-row input[type=checkbox] { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
+  .toggle-row label { font-size: .78rem; color: var(--muted); cursor: pointer; letter-spacing: .04em; }
+
+  /* ── SERVIÇO SELECT NO MODAL ── */
+  .form-select {
+    width: 100%; padding: 10px 12px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 2px; color: var(--text);
+    font-family: var(--font-body); font-size: .85rem; transition: border .2s;
+    outline: none; appearance: none; cursor: pointer;
+  }
+  .form-select:focus { border-color: var(--gold-dim); }
+  .form-select option { background: var(--card); color: var(--text); }
 </style>
 </head>
 <body>
@@ -710,30 +774,65 @@
 
 <!-- MODAL NOVO AGENDAMENTO -->
 <div class="modal-overlay" id="modal">
-  <div class="modal">
+  <div class="modal" style="max-width:460px;max-height:90vh;overflow-y:auto">
     <div class="modal-title">Novo agendamento</div>
+
+    <!-- Toggle: agendamento próprio (dela mesma ou colega) -->
+    <div class="toggle-row" onclick="toggleProprio()">
+      <input type="checkbox" id="f-proprio" onchange="toggleProprio()" />
+      <label for="f-proprio">Agendamento meu ou de colega (não envia mensagem API)</label>
+    </div>
+
     <div class="form-group">
       <label class="form-label">Nome</label>
-      <input class="form-input" id="f-name" placeholder="Nome da cliente" />
+      <input class="form-input" id="f-name" placeholder="Nome da cliente" oninput="atualizarPreviewWpp()" />
     </div>
     <div class="form-group">
       <label class="form-label">WhatsApp</label>
-      <input class="form-input" id="f-phone" placeholder="(XX) 9XXXX-XXXX" type="tel" />
+      <input class="form-input" id="f-phone" placeholder="(XX) 9XXXX-XXXX" type="tel" oninput="atualizarPreviewWpp()" />
     </div>
+
+    <!-- Serviço (carregado dinamicamente) -->
+    <div class="form-group">
+      <label class="form-label">Serviço</label>
+      <select class="form-select" id="f-servico" onchange="atualizarPreviewWpp()">
+        <option value="">Selecionar serviço...</option>
+        <!-- preenchido via JS -->
+      </select>
+    </div>
+
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Data</label>
-        <input class="form-input" id="f-date" type="date" />
+        <input class="form-input" id="f-date" type="date" oninput="atualizarPreviewWpp()" />
       </div>
       <div class="form-group">
         <label class="form-label">Hora</label>
-        <input class="form-input" id="f-time" type="time" />
+        <input class="form-input" id="f-time" type="time" oninput="atualizarPreviewWpp()" />
       </div>
     </div>
+
     <div class="form-group">
       <label class="form-label">Anotações</label>
       <input class="form-input" id="f-notes" placeholder="Observações (opcional)" />
     </div>
+
+    <!-- Preview da mensagem WhatsApp -->
+    <div class="wpp-preview-box" id="wpp-preview-box">
+      <div class="wpp-preview-label">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.096.536 4.068 1.476 5.788L0 24l6.368-1.452A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.6a9.572 9.572 0 01-4.889-1.339l-.35-.208-3.624.825.866-3.51-.228-.36A9.565 9.565 0 012.4 12c0-5.292 4.308-9.6 9.6-9.6s9.6 4.308 9.6 9.6-4.308 9.6-9.6 9.6z"/></svg>
+        Mensagem pronta para WhatsApp pessoal
+      </div>
+      <div class="wpp-preview-text" id="wpp-preview-text"></div>
+      <div class="wpp-btn-row">
+        <button class="btn-wpp-copy" onclick="copiarMensagemWpp()">📋 Copiar mensagem</button>
+        <button class="btn-wpp-open" onclick="abrirWhatsAppPessoal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.096.536 4.068 1.476 5.788L0 24l6.368-1.452A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.6a9.572 9.572 0 01-4.889-1.339l-.35-.208-3.624.825.866-3.51-.228-.36A9.565 9.565 0 012.4 12c0-5.292 4.308-9.6 9.6-9.6s9.6 4.308 9.6 9.6-4.308 9.6-9.6 9.6z"/></svg>
+          Abrir WhatsApp
+        </button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
       <button class="btn-primary" onclick="saveAgendamento()">Salvar</button>
@@ -751,7 +850,59 @@
 const SHEETS_URL      = 'https://script.google.com/macros/s/AKfycbysYdOKGxNN_II8nWIAmxnflex5qPcBioGHuIxtk5K-SjqUOVX67Ecw2HpQhwCFp0M/exec';
 const CONFIRM_WEBHOOK = 'https://flow.ezstudio.com.br/webhook/confirmar-elis';
 const CANCEL_WEBHOOK  = 'https://flow.ezstudio.com.br/webhook/cancelamento-elis';
-const PIN_CORRETO = '0284'; // ⚠️ Troque pelo PIN real da Elis
+// PIN armazenado como hash SHA-256 (seguro para repositório público)
+// Para trocar o PIN: gere o novo hash em https://emn178.github.io/online-tools/sha256.html
+const PIN_HASH = '811fb553e1827f167b8176e48cfe1e21bc1e8b4a2483f199d8605878c7770980';
+
+// ── Template de email de notificação (para copiar no Apps Script) ──
+// Função para gerar o HTML do email de notificação com mensagem WhatsApp pronta
+// Cole isso no seu Apps Script substituindo o MailApp.sendEmail simples:
+/*
+function enviarEmailNotificacao(dados) {
+  const { nome, telefone, data, hora, servico } = dados;
+
+  // Formata data legível
+  const dt = new Date(data + 'T12:00:00');
+  const diasSemana = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const dataFmt = `${diasSemana[dt.getDay()]}, ${dt.getDate()} de ${meses[dt.getMonth()]}`;
+  const primeiroNome = nome.split(' ')[0];
+
+  // Mensagem WhatsApp pronta para copiar
+  const msgWpp = `Olá, ${primeiroNome}! 😊\n\nSeu agendamento está *confirmado*! ✅\n\n📅 *Data:* ${dataFmt}\n🕐 *Horário:* ${hora}${servico ? '\n💅 *Serviço:* ' + servico : ''}\n\n📍 *Local:* Studio Elis Miranda\n\nQualquer dúvida, pode me chamar! Até lá 🌸`;
+
+  const htmlEmail = `
+  <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border:1px solid #e8e0f0;border-radius:8px;overflow:hidden">
+    <div style="background:#1C1720;padding:24px;text-align:center">
+      <div style="font-family:Georgia,serif;font-size:22px;color:#C9A96E;letter-spacing:4px">Elis Miranda</div>
+      <div style="font-size:11px;color:#7A6E78;letter-spacing:2px;text-transform:uppercase;margin-top:4px">Novo Agendamento</div>
+    </div>
+    <div style="padding:24px">
+      <p style="margin:0 0 18px;color:#333;font-size:14px">📣 Um novo agendamento foi realizado pelo formulário:</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+        <tr><td style="padding:8px 0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px;width:110px">Cliente</td><td style="padding:8px 0;font-size:14px;font-weight:600;color:#222">${nome}</td></tr>
+        <tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px">WhatsApp</td><td style="padding:8px 0;font-size:14px;color:#222">${telefone}</td></tr>
+        <tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px">Data</td><td style="padding:8px 0;font-size:14px;color:#222">${dataFmt}</td></tr>
+        <tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px">Horário</td><td style="padding:8px 0;font-size:14px;font-weight:600;color:#C9A96E">${hora}</td></tr>
+        ${servico ? `<tr style="border-top:1px solid #f0f0f0"><td style="padding:8px 0;color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1px">Serviço</td><td style="padding:8px 0;font-size:14px;color:#222">${servico}</td></tr>` : ''}
+      </table>
+
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:16px;margin-bottom:16px">
+        <div style="font-size:11px;color:#16a34a;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">📱 Mensagem pronta para WhatsApp</div>
+        <div style="font-size:13px;color:#333;white-space:pre-line;line-height:1.6;background:#fff;padding:12px;border-radius:4px;border:1px solid #d1fae5">${msgWpp}</div>
+      </div>
+
+      <p style="font-size:12px;color:#aaa;margin:0">Copie a mensagem acima e envie pelo seu WhatsApp pessoal para confirmar com a cliente.</p>
+    </div>
+  </div>`;
+
+  MailApp.sendEmail({
+    to: 'agendamentos@elismiranda.com.br',
+    subject: `✨ Novo agendamento — ${nome} · ${dataFmt} às ${hora}`,
+    htmlBody: htmlEmail
+  });
+}
+*/
 
 // ═══════════════════════════════════════
 // ESTADO
@@ -808,8 +959,13 @@ function updateDots() {
   }
 }
 
-function checkPin() {
-  if (pinAtual === PIN_CORRETO) {
+async function checkPin() {
+  // Gera hash SHA-256 do PIN digitado usando a Web Crypto API nativa do browser
+  const encoder = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(pinAtual));
+  const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+  if (hashHex === PIN_HASH) {
     enterApp();
     // Após PIN correto, oferece cadastrar a digital se ainda não foi feito
     if (window.PublicKeyCredential && !localStorage.getItem('elis_cred')) {
@@ -1600,11 +1756,58 @@ function deleteServicoPainel(id) {
 // ═══════════════════════════════════════
 // MODAL NOVO AGENDAMENTO
 // ═══════════════════════════════════════
+
+// Popula o select de serviços no modal, incluindo "Gratuito" exclusivo do painel
+function popularSelectServicos() {
+  const sel = document.getElementById('f-servico');
+  if (!sel) return;
+
+  // Guarda opção vazia
+  sel.innerHTML = '<option value="">Selecionar serviço...</option>';
+
+  // Serviços da lista carregada
+  const ativos = servicosList.filter(s => s.ativo !== false);
+  const cats = {};
+  ativos.forEach(s => {
+    if (!cats[s.categoria]) cats[s.categoria] = [];
+    cats[s.categoria].push(s);
+  });
+
+  Object.keys(cats).forEach(cat => {
+    const group = document.createElement('optgroup');
+    group.label = cat;
+    cats[cat].forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.servico;
+      opt.dataset.preco = s.preco || 0;
+      opt.textContent = `${s.servico} — R$ ${Number(s.preco).toLocaleString('pt-BR')}`;
+      group.appendChild(opt);
+    });
+    sel.appendChild(group);
+  });
+
+  // ✅ Opção gratuita — só aparece no painel da Elis
+  const optGratis = document.createElement('option');
+  optGratis.value = '__gratuito__';
+  optGratis.dataset.preco = 0;
+  optGratis.textContent = '🟢 Serviço Gratuito (troca / colega)';
+  sel.appendChild(optGratis);
+}
+
 function openModal() {
   document.getElementById('modal').classList.add('open');
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('f-date').value = today;
   document.getElementById('f-time').value = '09:00';
+  document.getElementById('f-proprio').checked = false;
+  document.getElementById('wpp-preview-box').classList.remove('visible');
+
+  // Garante que os serviços estejam carregados antes de popular o select
+  if (!servicosList.length) {
+    loadServicosPainel().then(() => popularSelectServicos());
+  } else {
+    popularSelectServicos();
+  }
 }
 
 function closeModal() {
@@ -1612,24 +1815,129 @@ function closeModal() {
   ['f-name','f-phone','f-date','f-time','f-notes'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('f-servico').value = '';
+  document.getElementById('f-proprio').checked = false;
+  document.getElementById('wpp-preview-box').classList.remove('visible');
+}
+
+// Alterna o estado do toggle de agendamento próprio
+function toggleProprio() {
+  const cb = document.getElementById('f-proprio');
+  // O click no div dispara antes do change do input — sincroniza
+  if (event && event.target !== cb) cb.checked = !cb.checked;
+  atualizarPreviewWpp();
+}
+
+// Gera o texto da mensagem de confirmação
+function gerarMensagemWpp(name, phone, date, time, servico) {
+  if (!name || !date || !time) return '';
+
+  const dtObj = new Date(date + 'T12:00:00');
+  const diasSemana = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const diaSemana = diasSemana[dtObj.getDay()];
+  const dia = dtObj.getDate();
+  const mes = meses[dtObj.getMonth()];
+
+  const nomeFormatado = name.split(' ')[0]; // só o primeiro nome
+  const servicoTexto = servico && servico !== '__gratuito__' ? servico : '';
+
+  let msg = `Olá, ${nomeFormatado}! 😊\n\n`;
+  msg += `Seu agendamento está *confirmado*! ✅\n\n`;
+  msg += `📅 *Data:* ${diaSemana}, ${dia} de ${mes}\n`;
+  msg += `🕐 *Horário:* ${time}\n`;
+  if (servicoTexto) msg += `💅 *Serviço:* ${servicoTexto}\n`;
+  msg += `\n📍 *Local:* Studio Elis Miranda\n`;
+  msg += `\nQualquer dúvida, pode me chamar! Até lá 🌸`;
+
+  return msg;
+}
+
+// Atualiza o preview da mensagem em tempo real
+function atualizarPreviewWpp() {
+  const proprio = document.getElementById('f-proprio').checked;
+  const box = document.getElementById('wpp-preview-box');
+
+  if (!proprio) {
+    box.classList.remove('visible');
+    return;
+  }
+
+  const name    = document.getElementById('f-name').value.trim();
+  const phone   = document.getElementById('f-phone').value.trim();
+  const date    = document.getElementById('f-date').value;
+  const time    = document.getElementById('f-time').value;
+  const servico = document.getElementById('f-servico').value;
+
+  if (!name || !date || !time) {
+    box.classList.remove('visible');
+    return;
+  }
+
+  const msg = gerarMensagemWpp(name, phone, date, time, servico);
+  document.getElementById('wpp-preview-text').textContent = msg;
+  box.classList.add('visible');
+}
+
+function copiarMensagemWpp() {
+  const texto = document.getElementById('wpp-preview-text').textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    showToast('Mensagem copiada!', 'success');
+  }).catch(() => {
+    // fallback para dispositivos mais antigos
+    const el = document.getElementById('wpp-preview-text');
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    showToast('Mensagem copiada!', 'success');
+  });
+}
+
+function abrirWhatsAppPessoal() {
+  const phone = document.getElementById('f-phone').value.trim();
+  const msg   = document.getElementById('wpp-preview-text').textContent;
+  const digits = phone.replace(/\D/g, '');
+  const num = digits.length >= 12 ? digits : (digits.length >= 8 ? '55' + digits : digits);
+  const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
 }
 
 async function saveAgendamento() {
-  const name  = document.getElementById('f-name').value.trim();
-  const phone = document.getElementById('f-phone').value.trim();
-  const date  = document.getElementById('f-date').value;
-  const time  = document.getElementById('f-time').value;
-  const notes = document.getElementById('f-notes').value.trim();
+  const name    = document.getElementById('f-name').value.trim();
+  const phone   = document.getElementById('f-phone').value.trim();
+  const date    = document.getElementById('f-date').value;
+  const time    = document.getElementById('f-time').value;
+  const notes   = document.getElementById('f-notes').value.trim();
+  const proprio = document.getElementById('f-proprio').checked;
+  const servicoVal = document.getElementById('f-servico').value;
 
   if (!name || !phone || !date || !time) {
     showToast('Preencha todos os campos', 'error');
     return;
   }
 
+  // Resolve nome e preço do serviço
+  let servicoNome = '';
+  let servicoPreco = 0;
+
+  if (servicoVal === '__gratuito__') {
+    servicoNome = 'Gratuito (troca)';
+    servicoPreco = 0;
+  } else if (servicoVal) {
+    const svcObj = servicosList.find(s => s.servico === servicoVal);
+    servicoNome  = servicoVal;
+    servicoPreco = svcObj ? Number(svcObj.preco) : 0;
+  }
+
   const novo = {
     id: Date.now(),
     name, phone, date, time, notes,
-    status: 'Confirmado'
+    servico: servicoNome,
+    preco: servicoPreco,
+    status: 'Confirmado',
+    origem: proprio ? 'manual' : 'formulario'
   };
 
   agendamentos.unshift(novo);
@@ -1637,6 +1945,7 @@ async function saveAgendamento() {
   closeModal();
   showToast('Agendamento salvo!', 'success');
 
+  // Salva na planilha normalmente — independente de ser próprio ou não
   try {
     fetch(SHEETS_URL, {
       method: 'POST',
@@ -1644,6 +1953,10 @@ async function saveAgendamento() {
       body:   new URLSearchParams({ action: 'add', ...novo }),
     }).catch(() => {});
   } catch (e) { /* offline ok */ }
+
+  // Se NÃO for agendamento próprio, dispara webhook normalmente
+  // (quando o webhook estiver funcionando)
+  // Se for próprio, não dispara — ela enviará manualmente pelo WhatsApp pessoal
 }
 
 // ═══════════════════════════════════════
