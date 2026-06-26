@@ -712,6 +712,7 @@
         <button class="filter-btn" onclick="setFilter('Confirmado', this)">Confirmados</button>
         <button class="filter-btn" onclick="setFilter('Realizado', this)">Realizados</button>
         <button class="filter-btn" onclick="setFilter('Cancelado', this)">Cancelados</button>
+        <button class="filter-btn" id="filter-recentes" onclick="setFilter('recentes', this)">Recentes</button>
       </div>
     </div>
 
@@ -1041,7 +1042,8 @@ function enviarEmailNotificacao(dados) {
 // ═══════════════════════════════════════
 let pinAtual = '';
 let agendamentos = [];
-let filtroAtivo = 'todos';
+let filtroAtivo  = 'todos';
+let ordemRecente = false; // false = cronológico crescente, true = mais recentes primeiro
 
 // ═══════════════════════════════════════
 // BOOT
@@ -1274,9 +1276,50 @@ function addMinutes(time, mins) {
 
 function renderTable() {
   const tbody = document.getElementById('table-body');
-  const lista = filtroAtivo === 'todos'
-    ? agendamentos
+
+  // Filtra
+  let lista = filtroAtivo === 'todos'
+    ? [...agendamentos]
     : agendamentos.filter(a => a.status === filtroAtivo);
+
+  // Ordena
+  if (ordemRecente) {
+    // Recentes: mais novos primeiro (por data desc, depois hora desc)
+    lista.sort((a, b) => {
+      const da = (a.date || '') + (a.time || '');
+      const db = (b.date || '') + (b.time || '');
+      return db.localeCompare(da);
+    });
+  } else {
+    // Padrão: mais próximos primeiro (cronológico crescente)
+    // Separa futuros/hoje dos passados
+    const hoje = new Date().toISOString().split('T')[0];
+    const agora = new Date().toTimeString().slice(0, 5);
+
+    const proximos = lista.filter(a => {
+      if (!a.date) return false;
+      if (a.date > hoje) return true;
+      if (a.date === hoje) return (a.time || '99:99') >= agora;
+      return false;
+    }).sort((a, b) => {
+      const da = (a.date || '') + (a.time || '');
+      const db = (b.date || '') + (b.time || '');
+      return da.localeCompare(db);
+    });
+
+    const passados = lista.filter(a => {
+      if (!a.date) return true;
+      if (a.date < hoje) return true;
+      if (a.date === hoje) return (a.time || '99:99') < agora;
+      return false;
+    }).sort((a, b) => {
+      const da = (a.date || '') + (a.time || '');
+      const db = (b.date || '') + (b.time || '');
+      return db.localeCompare(da); // passados: mais recente primeiro
+    });
+
+    lista = [...proximos, ...passados];
+  }
 
   if (!lista.length) {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum agendamento aqui ainda.</td></tr>';
@@ -1392,7 +1435,13 @@ document.addEventListener('click', function(e) {
 // FILTROS
 // ═══════════════════════════════════════
 function setFilter(val, btn) {
-  filtroAtivo = val;
+  if (val === 'recentes') {
+    ordemRecente = true;
+    filtroAtivo  = 'todos';
+  } else {
+    ordemRecente = false;
+    filtroAtivo  = val;
+  }
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderTable();
