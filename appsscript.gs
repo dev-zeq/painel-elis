@@ -671,7 +671,7 @@ function enviarLembretes24hAntes() {
   amanha.setDate(amanha.getDate() + 1);
   const dataAmanha = Utilities.formatDate(amanha, Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
-  const LEMBRETE_WEBHOOK = 'https://flow.ezstudio.com.br/webhook/lembrete-elis';
+  const LEMBRETE_WEBHOOK = 'https://autlh.tokewoot.com/functions/v1/webhook-receiver/4r5bka2an0j1kwzwihbzykpy';
   const COL_LEMBRETE = 11; // coluna K — LembreteEnviado
 
   for (let i = 1; i < rows.length; i++) {
